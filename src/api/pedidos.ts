@@ -1,11 +1,22 @@
 import api from './client';
 import type { PedidoActivo, Producto, Categoria } from '@/types';
+import type { PagoItem } from './caja';
 
 export interface CrearPedidoRequest {
   tipoConsumo: string;
   mesa: string;
   notasGenerales: string;
   items: { productoId: number; cantidad: number; notasPreparacion: string }[];
+}
+
+export interface DocumentoCobro {
+  id: number;
+  tipo: 'ITEMS' | 'MONTO';
+  estado: 'PENDIENTE' | 'PAGADO';
+  subtotal: number;
+  total: number;
+  monto: number | null;
+  detalleIds: number[];
 }
 
 export const getCategorias = () =>
@@ -28,3 +39,24 @@ export const entregarPedido = (id: number) =>
 
 export const cancelarPedido = (id: number) =>
   api.put(`/pedidos/${id}/cancelar`).then((r) => r.data);
+
+// --- Módulo 4 ---
+
+export const agregarItems = (
+  pedidoId: number,
+  items: { productoId: number; cantidad: number; notasPreparacion: string }[]
+) => api.post(`/pedidos/${pedidoId}/items`, { items }).then((r) => r.data);
+
+export const cancelarItem = (pedidoId: number, detalleId: number, motivo?: string) =>
+  api.put(`/pedidos/${pedidoId}/items/${detalleId}/cancelar`, motivo ? { motivo } : undefined).then((r) => r.data);
+
+export const crearDocumentoCobro = (
+  pedidoId: number,
+  data: { tipo: 'ITEMS'; detalleIds: number[] } | { tipo: 'MONTO'; monto: number }
+) => api.post<DocumentoCobro>(`/pedidos/${pedidoId}/documentos-cobro`, data).then((r) => r.data);
+
+export const listarDocumentosCobro = (pedidoId: number) =>
+  api.get<DocumentoCobro[]>(`/pedidos/${pedidoId}/documentos-cobro`).then((r) => r.data);
+
+export const pagarDocumentoCobro = (documentoId: number, sesionCajaId: number, pagos: PagoItem[]) =>
+  api.post<DocumentoCobro>(`/pedidos/documentos-cobro/${documentoId}/pagar`, { sesionCajaId, pagos }).then((r) => r.data);

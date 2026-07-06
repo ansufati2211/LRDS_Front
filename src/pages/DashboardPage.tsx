@@ -4,14 +4,15 @@ import { BarChart3, AlertTriangle, TrendingUp, ShoppingBag, LogOut, RefreshCw, D
 import { getDashboard, getAlertasStock } from '@/api/reportes';
 import { useAuthStore } from '@/store/authStore';
 import type { DashboardVentas, InsumoAlerta } from '@/api/reportes';
+import { fechaPeruISO } from '@/lib/datetimePeru';
 
 function hoy() {
-  return new Date().toISOString().slice(0, 10);
+  return fechaPeruISO();
 }
 function hace30Dias() {
   const d = new Date();
   d.setDate(d.getDate() - 30);
-  return d.toISOString().slice(0, 10);
+  return fechaPeruISO(d);
 }
 
 // Gráfico SVG de barras simple (sin dependencias externas)
@@ -100,7 +101,7 @@ export default function DashboardPage() {
   };
 
   const descargarExcel = () => {
-    const token = localStorage.getItem('token');
+    const token = useAuthStore.getState().token;
     window.open(`/api/reportes/excel?inicio=${inicio}&fin=${fin}&token=${token}`, '_blank');
   };
 

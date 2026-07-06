@@ -23,13 +23,18 @@ export type EstadoPedido =
 
 export type TipoConsumo = 'MESA' | 'PARA_LLEVAR' | 'DELIVERY';
 
+export type EstadoItem = 'PENDIENTE' | 'EN_PREPARACION' | 'LISTO' | 'ENTREGADO' | 'CANCELADO';
+
 export interface DetallePedido {
+  detalleId: number;
   productoId: number;
   nombreProducto: string;
   cantidad: number;
   precioUnitario: number;
   subtotal: number;
   notasPreparacion?: string;
+  estadoItem: EstadoItem;
+  numeroComanda: number;
 }
 
 export interface PedidoActivo {
@@ -42,7 +47,10 @@ export interface PedidoActivo {
   total: number;
   fechaCreacion: string;
   items: DetallePedido[];
+  requiereRevision: boolean;
 }
+
+export type EstadoDisponibilidad = 'DISPONIBLE' | 'AGOTADO_TEMPORAL' | 'AGOTADO_SERVICIO';
 
 export interface Producto {
   id: number;
@@ -50,6 +58,7 @@ export interface Producto {
   precioVenta: number;
   categoria?: { id: number; nombre: string };
   estadoRegistro: boolean;
+  estadoDisponibilidad: EstadoDisponibilidad;
 }
 
 export interface Categoria {

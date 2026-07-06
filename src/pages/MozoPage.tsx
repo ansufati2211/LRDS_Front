@@ -10,9 +10,151 @@ import {
   crearPedido,
   confirmarPedido,
   entregarPedido,
+  agregarItems,
+  cancelarItem,
 } from '@/api/pedidos';
 import { useAuthStore } from '@/store/authStore';
-import type { Producto, PedidoActivo, ItemPedidoLocal, EstadoPedido } from '@/types';
+import type { Producto, PedidoActivo, ItemPedidoLocal, EstadoPedido, EstadoItem } from '@/types';
+import { formatearHoraPeru } from '@/lib/datetimePeru';
+
+const puedeCancelarEntregado = (rol?: string) => rol === 'ROLE_GERENTE' || rol === 'ROLE_SUPER_ADMIN';
+
+// ─── Modal para agregar ítems a un pedido ya confirmado (Módulo 4) ────────────
+function ModalAgregarItems({
+  pedido,
+  productos,
+  onClose,
+  onAgregado,
+}: {
+  pedido: PedidoActivo;
+  productos: Producto[];
+  onClose: () => void;
+  onAgregado: () => Promise<void>;
+}) {
+  const [carrito, setCarrito] = useState<ItemPedidoLocal[]>([]);
+  const [busqueda, setBusqueda] = useState('');
+  const [enviando, setEnviando] = useState(false);
+
+  const disponibles = productos.filter(
+    (p) => p.estadoDisponibilidad === 'DISPONIBLE' && p.nombre.toLowerCase().includes(busqueda.toLowerCase())
+  );
+
+  const agregar = (prod: Producto) => {
+    setCarrito((prev) => {
+      const existe = prev.find((i) => i.productoId === prod.id);
+      if (existe) return prev.map((i) => (i.productoId === prod.id ? { ...i, cantidad: i.cantidad + 1 } : i));
+      return [...prev, { productoId: prod.id, nombre: prod.nombre, precio: prod.precioVenta, cantidad: 1, notas: '' }];
+    });
+  };
+
+  const cambiarCantidad = (productoId: number, delta: number) => {
+    setCarrito((prev) =>
+      prev.map((i) => (i.productoId === productoId ? { ...i, cantidad: i.cantidad + delta } : i)).filter((i) => i.cantidad > 0)
+    );
+  };
+
+  const total = carrito.reduce((s, i) => s + i.precio * i.cantidad, 0);
+
+  const handleEnviar = async () => {
+    if (carrito.length === 0) return;
+    setEnviando(true);
+    try {
+      await agregarItems(
+        pedido.id,
+        carrito.map((i) => ({ productoId: i.productoId, cantidad: i.cantidad, notasPreparacion: i.notas }))
+      );
+      await onAgregado();
+      onClose();
+    } finally {
+      setEnviando(false);
+    }
+  };
+
+  return (
+    <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+      <div className="bg-white rounded-2xl shadow-xl w-full max-w-lg max-h-[85vh] flex flex-col overflow-hidden">
+        <div className="bg-orange-500 px-6 py-4 flex items-center justify-between">
+          <div>
+            <h2 className="text-white font-bold text-lg">Agregar ítems — Pedido #{pedido.id}</h2>
+            <p className="text-orange-100 text-sm">{pedido.mesa || pedido.tipoConsumo}</p>
+          </div>
+          <button onClick={onClose} className="text-white/80 hover:text-white">
+            <X size={20} />
+          </button>
+        </div>
+
+        <div className="p-4 border-b border-gray-100">
+          <input
+            value={busqueda}
+            onChange={(e) => setBusqueda(e.target.value)}
+            placeholder="Buscar platillo..."
+            className="w-full px-4 py-2.5 bg-gray-50 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-orange-300"
+          />
+        </div>
+
+        <div className="flex-1 overflow-y-auto p-4 space-y-2">
+          {disponibles.length === 0 && (
+            <p className="text-center text-gray-400 text-sm py-8">No hay coincidencias</p>
+          )}
+          {disponibles.map((prod) => {
+            const enCarrito = carrito.find((i) => i.productoId === prod.id);
+            return (
+              <div
+                key={prod.id}
+                onClick={() => agregar(prod)}
+                className="flex items-center justify-between p-3 bg-gray-50 rounded-xl border border-gray-100 hover:border-orange-300 cursor-pointer transition"
+              >
+                <div>
+                  <p className="text-sm font-bold text-gray-800">{prod.nombre}</p>
+                  <p className="text-xs text-gray-500">S/ {prod.precioVenta.toFixed(2)}</p>
+                </div>
+                {enCarrito && (
+                  <span className="bg-orange-500 text-white text-sm font-extrabold w-7 h-7 flex items-center justify-center rounded-full">
+                    {enCarrito.cantidad}
+                  </span>
+                )}
+              </div>
+            );
+          })}
+        </div>
+
+        {carrito.length > 0 && (
+          <div className="p-4 border-t border-gray-100 space-y-2 max-h-40 overflow-y-auto">
+            {carrito.map((item) => (
+              <div key={item.productoId} className="flex items-center gap-3">
+                <div className="flex items-center gap-1 bg-gray-50 rounded-lg px-1">
+                  <button onClick={() => cambiarCantidad(item.productoId, -1)} className="p-1 text-gray-500 hover:text-red-500">
+                    <Minus size={12} />
+                  </button>
+                  <span className="text-xs font-bold w-5 text-center">{item.cantidad}</span>
+                  <button onClick={() => cambiarCantidad(item.productoId, 1)} className="p-1 text-gray-500 hover:text-orange-600">
+                    <Plus size={12} />
+                  </button>
+                </div>
+                <span className="flex-1 text-sm font-medium text-gray-700">{item.nombre}</span>
+                <span className="text-sm font-bold text-gray-900">S/ {(item.precio * item.cantidad).toFixed(2)}</span>
+              </div>
+            ))}
+          </div>
+        )}
+
+        <div className="p-4 border-t border-gray-100 bg-white">
+          <div className="flex items-center justify-between mb-3">
+            <span className="text-sm font-semibold text-gray-500">Total nuevos ítems</span>
+            <span className="text-xl font-black text-gray-900">S/ {total.toFixed(2)}</span>
+          </div>
+          <button
+            onClick={handleEnviar}
+            disabled={enviando || carrito.length === 0}
+            className="w-full bg-orange-600 hover:bg-orange-700 disabled:bg-gray-300 disabled:text-gray-500 text-white font-bold py-3 rounded-xl text-sm transition"
+          >
+            {enviando ? 'Enviando...' : 'Enviar a cocina'}
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
 
 const ESTADO_CONFIG: Record<EstadoPedido, { label: string; color: string; icon: React.ReactNode }> = {
   BORRADOR: { label: 'Borrador', color: 'bg-gray-100 text-gray-700', icon: <Clock size={14} /> },
@@ -78,7 +220,7 @@ function NotificacionModal({
                 </p>
                 <p className="text-xs text-gray-400 mt-1 flex items-center gap-1">
                   <Clock size={12}/>
-                  {n.timestamp.toLocaleTimeString('es-PE', { hour: '2-digit', minute: '2-digit' })}
+                  {formatearHoraPeru(n.timestamp)}
                   {n.entregado && <span className="ml-2 text-green-600 font-semibold flex items-center gap-1"><CheckCircle size={12}/> Entregado</span>}
                 </p>
               </div>
@@ -113,6 +255,7 @@ export default function MozoPage() {
   const [enviando, setEnviando] = useState(false);
 
   const [pedidos, setPedidos] = useState<PedidoActivo[]>([]);
+  const [pedidoAgregando, setPedidoAgregando] = useState<PedidoActivo | null>(null);
 
   // Notificaciones SSE
   const [notificaciones, setNotificaciones] = useState<NotificacionListo[]>([]);
@@ -131,7 +274,7 @@ export default function MozoPage() {
   }, [cargarPedidos]);
 
   useEffect(() => {
-    const token = localStorage.getItem('token');
+    const token = useAuthStore.getState().token;
     const es = new EventSource(`/api/kds/eventos?token=${token}`);
 
     const agregarNotificacion = (data: { pedidoId: number; numeroOrden: number; mesa: string; tipoConsumo: string }) => {
@@ -157,6 +300,21 @@ export default function MozoPage() {
     });
 
     es.addEventListener('EN_PREPARACION', () => cargarPedidos());
+
+    // R6-4: disponibilidad de productos en tiempo real — evita seguir vendiendo algo agotado
+    es.addEventListener('PRODUCTO_AGOTADO', (e) => {
+      const data = JSON.parse(e.data) as { productoId: number; estado: 'AGOTADO_TEMPORAL' | 'AGOTADO_SERVICIO' };
+      setProductos((prev) =>
+        prev.map((p) => (p.id === data.productoId ? { ...p, estadoDisponibilidad: data.estado } : p))
+      );
+    });
+    es.addEventListener('PRODUCTO_DISPONIBLE', (e) => {
+      const data = JSON.parse(e.data) as { productoId: number };
+      setProductos((prev) =>
+        prev.map((p) => (p.id === data.productoId ? { ...p, estadoDisponibilidad: 'DISPONIBLE' } : p))
+      );
+    });
+
     es.onerror = () => es.close();
 
     return () => es.close();
@@ -232,6 +390,19 @@ export default function MozoPage() {
     setNotificaciones((prev) =>
       prev.map((n) => n.pedidoId === id ? { ...n, entregado: true } : n)
     );
+    await cargarPedidos();
+  };
+
+  const handleCancelarItem = async (pedidoId: number, detalleId: number, estadoItem: EstadoItem) => {
+    let motivo: string | undefined;
+    if (estadoItem === 'ENTREGADO') {
+      const m = window.prompt('Motivo de cancelación (obligatorio para ítems ya entregados):');
+      if (!m || !m.trim()) return;
+      motivo = m.trim();
+    } else if (!window.confirm('¿Cancelar este ítem?')) {
+      return;
+    }
+    await cancelarItem(pedidoId, detalleId, motivo);
     await cargarPedidos();
   };
 
@@ -337,25 +508,37 @@ export default function MozoPage() {
             ) : (
               productosFiltrados.map((prod) => {
                 const enCarrito = carrito.find((i) => i.productoId === prod.id);
+                const agotado = prod.estadoDisponibilidad !== 'DISPONIBLE';
                 return (
                   <div
                     key={prod.id}
-                    onClick={() => agregarAlCarrito(prod)}
-                    className="group flex items-center justify-between p-3.5 bg-white rounded-2xl border border-gray-100 hover:border-orange-300 hover:shadow-md cursor-pointer transition-all active:scale-[0.98]"
+                    onClick={() => !agotado && agregarAlCarrito(prod)}
+                    className={`group flex items-center justify-between p-3.5 bg-white rounded-2xl border transition-all ${
+                      agotado
+                        ? 'border-gray-100 opacity-50 cursor-not-allowed'
+                        : 'border-gray-100 hover:border-orange-300 hover:shadow-md cursor-pointer active:scale-[0.98]'
+                    }`}
                   >
                     <div>
-                      <p className="text-sm font-bold text-gray-800 group-hover:text-orange-700 transition-colors">{prod.nombre}</p>
+                      <div className="flex items-center gap-2">
+                        <p className="text-sm font-bold text-gray-800 group-hover:text-orange-700 transition-colors">{prod.nombre}</p>
+                        {agotado && (
+                          <span className="text-[10px] font-bold uppercase bg-red-100 text-red-600 px-1.5 py-0.5 rounded-full">
+                            Agotado
+                          </span>
+                        )}
+                      </div>
                       <p className="text-xs font-semibold text-gray-500 mt-0.5">S/ {prod.precioVenta.toFixed(2)}</p>
                     </div>
-                    {enCarrito ? (
+                    {!agotado && enCarrito ? (
                       <span className="bg-orange-500 text-white text-sm font-extrabold w-8 h-8 flex items-center justify-center rounded-full shadow-sm">
                         {enCarrito.cantidad}
                       </span>
-                    ) : (
+                    ) : !agotado ? (
                       <div className="w-8 h-8 rounded-full bg-gray-50 text-gray-400 group-hover:bg-orange-100 group-hover:text-orange-600 flex items-center justify-center transition-colors">
                         <Plus size={18} strokeWidth={2.5} />
                       </div>
-                    )}
+                    ) : null}
                   </div>
                 );
               })
@@ -473,15 +656,30 @@ export default function MozoPage() {
 
                     {/* Body Tarjeta */}
                     <div className="flex-1 p-5 space-y-3">
-                      {pedido.items.map((item, i) => (
-                        <div key={i} className="flex justify-between items-start text-sm border-b border-gray-50 pb-2 last:border-0 last:pb-0">
-                          <div className="flex gap-2">
-                            <span className="font-bold text-gray-900">{item.cantidad}x</span>
-                            <span className="font-medium text-gray-700">{item.nombreProducto}</span>
+                      {pedido.items.map((item) => {
+                        const cancelado = item.estadoItem === 'CANCELADO';
+                        const puedeCancelar = !cancelado && (item.estadoItem !== 'ENTREGADO' || puedeCancelarEntregado(user?.rol));
+                        return (
+                          <div key={item.detalleId} className={`flex justify-between items-start text-sm border-b border-gray-50 pb-2 last:border-0 last:pb-0 ${cancelado ? 'opacity-40' : ''}`}>
+                            <div className="flex gap-2">
+                              <span className="font-bold text-gray-900">{item.cantidad}x</span>
+                              <span className={`font-medium text-gray-700 ${cancelado ? 'line-through' : ''}`}>{item.nombreProducto}</span>
+                            </div>
+                            <div className="flex items-center gap-2">
+                              <span className="font-bold text-gray-500 whitespace-nowrap">S/ {item.subtotal.toFixed(2)}</span>
+                              {puedeCancelar && (
+                                <button
+                                  onClick={() => handleCancelarItem(pedido.id, item.detalleId, item.estadoItem)}
+                                  className="text-gray-300 hover:text-red-500 transition-colors"
+                                  title="Cancelar ítem"
+                                >
+                                  <X size={14} />
+                                </button>
+                              )}
+                            </div>
                           </div>
-                          <span className="font-bold text-gray-500 whitespace-nowrap">S/ {item.subtotal.toFixed(2)}</span>
-                        </div>
-                      ))}
+                        );
+                      })}
                     </div>
 
                     {/* Footer Tarjeta */}
@@ -508,9 +706,17 @@ export default function MozoPage() {
                         </button>
                       )}
                       {!esBorrador && !esListo && (
-                        <div className="w-full py-3 bg-gray-100 text-gray-500 text-sm font-bold rounded-xl text-center flex items-center justify-center gap-2">
+                        <div className="w-full py-3 bg-gray-100 text-gray-500 text-sm font-bold rounded-xl text-center flex items-center justify-center gap-2 mb-2">
                           <Loader2 size={16} className="animate-spin opacity-50" /> Esperando cocina...
                         </div>
+                      )}
+                      {!esBorrador && (
+                        <button
+                          onClick={() => setPedidoAgregando(pedido)}
+                          className="w-full bg-white border border-gray-200 hover:border-orange-300 text-gray-600 hover:text-orange-600 text-xs font-bold py-2 rounded-xl transition-colors flex items-center justify-center gap-1.5"
+                        >
+                          <Plus size={14} /> Agregar ítems
+                        </button>
                       )}
                     </div>
                   </div>
@@ -528,6 +734,15 @@ export default function MozoPage() {
             await handleEntregar(id);
           }}
           onClose={() => setModalAbierto(false)}
+        />
+      )}
+
+      {pedidoAgregando && (
+        <ModalAgregarItems
+          pedido={pedidoAgregando}
+          productos={productos}
+          onClose={() => setPedidoAgregando(null)}
+          onAgregado={cargarPedidos}
         />
       )}
     </div>

@@ -2,13 +2,12 @@ import api from './client';
 
 export interface SesionCaja {
   id: number;
-  cajeroId: number;
   montoInicial: number;
   montoFinalDeclarado: number | null;
-  montoFinalSistema: number | null;
+  montoFinalCalculado: number | null;
   diferencia: number | null;
-  horaApertura: string;
-  horaCierre: string | null;
+  fechaApertura: string;
+  fechaCierre: string | null;
   estado: 'ABIERTA' | 'CERRADA';
 }
 
