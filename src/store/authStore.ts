@@ -1,5 +1,6 @@
 import { create } from 'zustand';
-import type { AuthResponse } from '@/types';
+import { persist } from 'zustand/middleware';
+import type { AuthResponse } from '@/types/auth';
 
 interface AuthState {
   token: string | null;
@@ -9,24 +10,25 @@ interface AuthState {
   isAuthenticated: () => boolean;
 }
 
-const stored = localStorage.getItem('user');
+export const useAuthStore = create<AuthState>()(
+  persist(
+    (set, get) => ({
+      token: null,
+      user: null,
 
-export const useAuthStore = create<AuthState>((set, get) => ({
-  token: localStorage.getItem('token'),
-  user: stored ? (JSON.parse(stored) as Omit<AuthResponse, 'token'>) : null,
+      setAuth: (data) => {
+        const { token, ...user } = data;
+        set({ token, user }); // Persist lo guarda en localStorage automáticamente
+      },
 
-  setAuth: (data) => {
-    const { token, ...user } = data;
-    localStorage.setItem('token', token);
-    localStorage.setItem('user', JSON.stringify(user));
-    set({ token, user });
-  },
+      logout: () => {
+        set({ token: null, user: null }); // Persist lo borra automáticamente
+      },
 
-  logout: () => {
-    localStorage.removeItem('token');
-    localStorage.removeItem('user');
-    set({ token: null, user: null });
-  },
-
-  isAuthenticated: () => !!get().token,
-}));
+      isAuthenticated: () => !!get().token,
+    }),
+    {
+      name: 'veronica-auth', // Nombre de la llave en localStorage
+    }
+  )
+);

@@ -14,7 +14,8 @@ function roleHome(rol: string): string {
 }
 
 export default function PrivateRoute({ children, roles }: Props) {
-  const { isAuthenticated, user } = useAuthStore();
+  const isAuthenticated = useAuthStore((state) => state.isAuthenticated);
+  const user = useAuthStore((state) => state.user);
 
   if (!isAuthenticated()) return <Navigate to="/login" replace />;
 
