@@ -1,3 +1,6 @@
 @import "tailwindcss";
 
-
+[data-sileo-toaster],
+[data-sileo-toast] {
+  z-index: 99999 !important;
+}

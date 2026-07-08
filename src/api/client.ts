@@ -2,25 +2,26 @@ import axios from 'axios';
 import { useAuthStore } from '@/store/authStore';
 
 const api = axios.create({
-  // ¡CAMBIO MAESTRO! Apuntamos directo a tu Java, saltándonos a Vite
-  baseURL: 'http://localhost:8080/api', 
-  headers: { 'Content-Type': 'application/json' },
+  baseURL: 'http://localhost:8080/api',
+  headers: {
+    'Content-Type': 'application/json',
+  },
 });
 
-// Agrega el JWT a cada request automáticamente
 api.interceptors.request.use((config) => {
   const token = useAuthStore.getState().token;
-  if (token && config.headers) {
+  if (token) {
     config.headers.Authorization = `Bearer ${token}`;
   }
   return config;
 });
 
-// Redirige al login si el token expiró o es inválido
 api.interceptors.response.use(
-  (res) => res,
+  (response) => response,
   (error) => {
-    if (error.response?.status === 401 || error.response?.status === 403) {
+    // ¡SOLUCIÓN MAESTRA! Solo deslogueamos si el token venció (401).
+    // Si es 403 (Modulo No Habilitado), dejamos que la página lo maneje.
+    if (error.response && error.response.status === 401) {
       useAuthStore.getState().logout();
       window.location.href = '/login';
     }

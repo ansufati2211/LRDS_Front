@@ -2,160 +2,22 @@ import { useEffect, useState, useCallback, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { 
   ShoppingCart, Plus, Minus, Send, LogOut, Clock, 
-  CheckCircle, ChefHat, Truck, X, Bell, Search, UtensilsCrossed, Loader2
+  CheckCircle, ChefHat, Truck, X, Bell, Search, UtensilsCrossed, Loader2 
 } from 'lucide-react';
-import {
-  getProductos,
-  getPedidosActivos,
-  crearPedido,
-  confirmarPedido,
-  entregarPedido,
-  agregarItems,
-  cancelarItem,
+import { 
+  getProductos, 
+  getPedidosActivos, 
+  crearPedido, 
+  confirmarPedido, 
+  entregarPedido, 
+  agregarItems, 
+  cancelarItem 
 } from '@/api/pedidos';
 import { useAuthStore } from '@/store/authStore';
 import type { Producto, PedidoActivo, ItemPedidoLocal, EstadoPedido, EstadoItem } from '@/types';
 import { formatearHoraPeru } from '@/lib/datetimePeru';
 
-const puedeCancelarEntregado = (rol?: string) => rol === 'ROLE_GERENTE' || rol === 'ROLE_SUPER_ADMIN';
-
-// ─── Modal para agregar ítems a un pedido ya confirmado (Módulo 4) ────────────
-function ModalAgregarItems({
-  pedido,
-  productos,
-  onClose,
-  onAgregado,
-}: {
-  pedido: PedidoActivo;
-  productos: Producto[];
-  onClose: () => void;
-  onAgregado: () => Promise<void>;
-}) {
-  const [carrito, setCarrito] = useState<ItemPedidoLocal[]>([]);
-  const [busqueda, setBusqueda] = useState('');
-  const [enviando, setEnviando] = useState(false);
-
-  const disponibles = productos.filter(
-    (p) => p.estadoDisponibilidad === 'DISPONIBLE' && p.nombre.toLowerCase().includes(busqueda.toLowerCase())
-  );
-
-  const agregar = (prod: Producto) => {
-    setCarrito((prev) => {
-      const existe = prev.find((i) => i.productoId === prod.id);
-      if (existe) return prev.map((i) => (i.productoId === prod.id ? { ...i, cantidad: i.cantidad + 1 } : i));
-      return [...prev, { productoId: prod.id, nombre: prod.nombre, precio: prod.precioVenta, cantidad: 1, notas: '' }];
-    });
-  };
-
-  const cambiarCantidad = (productoId: number, delta: number) => {
-    setCarrito((prev) =>
-      prev.map((i) => (i.productoId === productoId ? { ...i, cantidad: i.cantidad + delta } : i)).filter((i) => i.cantidad > 0)
-    );
-  };
-
-  const total = carrito.reduce((s, i) => s + i.precio * i.cantidad, 0);
-
-  const handleEnviar = async () => {
-    if (carrito.length === 0) return;
-    setEnviando(true);
-    try {
-      await agregarItems(
-        pedido.id,
-        carrito.map((i) => ({ productoId: i.productoId, cantidad: i.cantidad, notasPreparacion: i.notas }))
-      );
-      await onAgregado();
-      onClose();
-    } finally {
-      setEnviando(false);
-    }
-  };
-
-  return (
-    <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-      <div className="bg-white rounded-2xl shadow-xl w-full max-w-lg max-h-[85vh] flex flex-col overflow-hidden">
-        <div className="bg-orange-500 px-6 py-4 flex items-center justify-between">
-          <div>
-            <h2 className="text-white font-bold text-lg">Agregar ítems — Pedido #{pedido.id}</h2>
-            <p className="text-orange-100 text-sm">{pedido.mesa || pedido.tipoConsumo}</p>
-          </div>
-          <button onClick={onClose} className="text-white/80 hover:text-white">
-            <X size={20} />
-          </button>
-        </div>
-
-        <div className="p-4 border-b border-gray-100">
-          <input
-            value={busqueda}
-            onChange={(e) => setBusqueda(e.target.value)}
-            placeholder="Buscar platillo..."
-            className="w-full px-4 py-2.5 bg-gray-50 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-orange-300"
-          />
-        </div>
-
-        <div className="flex-1 overflow-y-auto p-4 space-y-2">
-          {disponibles.length === 0 && (
-            <p className="text-center text-gray-400 text-sm py-8">No hay coincidencias</p>
-          )}
-          {disponibles.map((prod) => {
-            const enCarrito = carrito.find((i) => i.productoId === prod.id);
-            return (
-              <div
-                key={prod.id}
-                onClick={() => agregar(prod)}
-                className="flex items-center justify-between p-3 bg-gray-50 rounded-xl border border-gray-100 hover:border-orange-300 cursor-pointer transition"
-              >
-                <div>
-                  <p className="text-sm font-bold text-gray-800">{prod.nombre}</p>
-                  <p className="text-xs text-gray-500">S/ {prod.precioVenta.toFixed(2)}</p>
-                </div>
-                {enCarrito && (
-                  <span className="bg-orange-500 text-white text-sm font-extrabold w-7 h-7 flex items-center justify-center rounded-full">
-                    {enCarrito.cantidad}
-                  </span>
-                )}
-              </div>
-            );
-          })}
-        </div>
-
-        {carrito.length > 0 && (
-          <div className="p-4 border-t border-gray-100 space-y-2 max-h-40 overflow-y-auto">
-            {carrito.map((item) => (
-              <div key={item.productoId} className="flex items-center gap-3">
-                <div className="flex items-center gap-1 bg-gray-50 rounded-lg px-1">
-                  <button onClick={() => cambiarCantidad(item.productoId, -1)} className="p-1 text-gray-500 hover:text-red-500">
-                    <Minus size={12} />
-                  </button>
-                  <span className="text-xs font-bold w-5 text-center">{item.cantidad}</span>
-                  <button onClick={() => cambiarCantidad(item.productoId, 1)} className="p-1 text-gray-500 hover:text-orange-600">
-                    <Plus size={12} />
-                  </button>
-                </div>
-                <span className="flex-1 text-sm font-medium text-gray-700">{item.nombre}</span>
-                <span className="text-sm font-bold text-gray-900">S/ {(item.precio * item.cantidad).toFixed(2)}</span>
-              </div>
-            ))}
-          </div>
-        )}
-
-        <div className="p-4 border-t border-gray-100 bg-white">
-          <div className="flex items-center justify-between mb-3">
-            <span className="text-sm font-semibold text-gray-500">Total nuevos ítems</span>
-            <span className="text-xl font-black text-gray-900">S/ {total.toFixed(2)}</span>
-          </div>
-          <button
-            onClick={handleEnviar}
-            disabled={enviando || carrito.length === 0}
-            className="w-full bg-orange-600 hover:bg-orange-700 disabled:bg-gray-300 disabled:text-gray-500 text-white font-bold py-3 rounded-xl text-sm transition"
-          >
-            {enviando ? 'Enviando...' : 'Enviar a cocina'}
-          </button>
-        </div>
-      </div>
-    </div>
-  );
-}
-
+// --- CONFIGURACIÓN VISUAL DE ESTADOS ---
 const ESTADO_CONFIG: Record<EstadoPedido, { label: string; color: string; icon: React.ReactNode }> = {
   BORRADOR: { label: 'Borrador', color: 'bg-gray-100 text-gray-700', icon: <Clock size={14} /> },
   RECIBIDO: { label: 'En cocina', color: 'bg-blue-100 text-blue-700 border-blue-200', icon: <ChefHat size={14} /> },
@@ -166,6 +28,8 @@ const ESTADO_CONFIG: Record<EstadoPedido, { label: string; color: string; icon: 
   CANCELADO: { label: 'Cancelado', color: 'bg-red-100 text-red-500 border-red-200', icon: <X size={14} /> },
 };
 
+const puedeCancelarEntregado = (rol?: string) => rol === 'ROLE_GERENTE' || rol === 'ROLE_SUPER_ADMIN';
+
 interface NotificacionListo {
   pedidoId: number;
   numeroOrden: number;
@@ -175,7 +39,9 @@ interface NotificacionListo {
   entregado: boolean;
 }
 
-// ─── Modal de notificaciones LISTO ─────────────────────────────────────────────
+// ============================================================================
+// MODAL: NOTIFICACIONES DE PEDIDOS LISTOS
+// ============================================================================
 function NotificacionModal({
   notificaciones,
   onEntregar,
@@ -186,6 +52,7 @@ function NotificacionModal({
   onClose: () => void;
 }) {
   const pendientes = notificaciones.filter((n) => !n.entregado);
+  
   return (
     <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4 animate-in fade-in duration-200">
       <div className="bg-white rounded-3xl shadow-2xl w-full max-w-md overflow-hidden">
@@ -240,23 +107,161 @@ function NotificacionModal({
   );
 }
 
-// ─── PANTALLA PRINCIPAL ──────────────────────────────────────────────────────
+// ============================================================================
+// MODAL: AGREGAR NUEVOS ÍTEMS A UN PEDIDO ACTIVO (Módulo 4)
+// ============================================================================
+function ModalAgregarItems({
+  pedido,
+  productos,
+  onClose,
+  onAgregado,
+}: {
+  pedido: PedidoActivo;
+  productos: Producto[];
+  onClose: () => void;
+  onAgregado: () => Promise<void>;
+}) {
+  const [carrito, setCarrito] = useState<ItemPedidoLocal[]>([]);
+  const [busqueda, setBusqueda] = useState('');
+  const [enviando, setEnviando] = useState(false);
+
+  // Módulo 6: Filtra productos para que no se puedan agregar los agotados
+  const disponibles = productos.filter(
+    (p) => p.estadoDisponibilidad === 'DISPONIBLE' && p.nombre.toLowerCase().includes(busqueda.toLowerCase())
+  );
+
+  const agregar = (prod: Producto) => {
+    setCarrito((prev) => {
+      const existe = prev.find((i) => i.productoId === prod.id);
+      if (existe) return prev.map((i) => (i.productoId === prod.id ? { ...i, cantidad: i.cantidad + 1 } : i));
+      return [...prev, { productoId: prod.id, nombre: prod.nombre, precio: prod.precioVenta, cantidad: 1, notas: '' }];
+    });
+  };
+
+  const cambiarCantidad = (productoId: number, delta: number) => {
+    setCarrito((prev) =>
+      prev.map((i) => (i.productoId === productoId ? { ...i, cantidad: i.cantidad + delta } : i)).filter((i) => i.cantidad > 0)
+    );
+  };
+
+  const total = carrito.reduce((s, i) => s + i.precio * i.cantidad, 0);
+
+  const handleEnviar = async () => {
+    if (carrito.length === 0) return;
+    setEnviando(true);
+    try {
+      await agregarItems(
+        pedido.id,
+        carrito.map((i) => ({ productoId: i.productoId, cantidad: i.cantidad, notasPreparacion: i.notas }))
+      );
+      await onAgregado();
+      onClose();
+    } finally {
+      setEnviando(false);
+    }
+  };
+
+  return (
+    <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+      <div className="bg-white rounded-2xl shadow-xl w-full max-w-lg max-h-[85vh] flex flex-col overflow-hidden">
+        <div className="bg-orange-500 px-6 py-4 flex items-center justify-between">
+          <div>
+            <h2 className="text-white font-bold text-lg">Agregar Ítems - Pedido #{pedido.id}</h2>
+            <p className="text-orange-100 text-sm">{pedido.mesa || pedido.tipoConsumo}</p>
+          </div>
+          <button onClick={onClose} className="text-white/80 hover:text-white">
+            <X size={20} />
+          </button>
+        </div>
+        <div className="p-4 border-b border-gray-100">
+          <input
+            value={busqueda}
+            onChange={(e) => setBusqueda(e.target.value)}
+            placeholder="Buscar platillo..."
+            className="w-full px-4 py-2.5 bg-gray-50 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-orange-300"
+          />
+        </div>
+        <div className="flex-1 overflow-y-auto p-4 space-y-2">
+          {disponibles.length === 0 && (
+            <p className="text-center text-gray-400 text-sm py-8">No hay coincidencias disponibles</p>
+          )}
+          {disponibles.map((prod) => {
+            const enCarrito = carrito.find((i) => i.productoId === prod.id);
+            return (
+              <div
+                key={prod.id}
+                onClick={() => agregar(prod)}
+                className="flex items-center justify-between p-3 bg-gray-50 rounded-xl border border-gray-100 hover:border-orange-300 cursor-pointer transition"
+              >
+                <div>
+                  <p className="text-sm font-bold text-gray-800">{prod.nombre}</p>
+                  <p className="text-xs text-gray-500">S/ {prod.precioVenta.toFixed(2)}</p>
+                </div>
+                {enCarrito && (
+                  <span className="bg-orange-500 text-white text-sm font-extrabold w-7 h-7 flex items-center justify-center rounded-full">
+                    {enCarrito.cantidad}
+                  </span>
+                )}
+              </div>
+            );
+          })}
+        </div>
+        
+        {carrito.length > 0 && (
+          <div className="p-4 border-t border-gray-100 space-y-2 max-h-40 overflow-y-auto">
+            {carrito.map((item) => (
+              <div key={item.productoId} className="flex items-center gap-3">
+                <div className="flex items-center gap-1 bg-gray-50 rounded-lg px-1">
+                  <button onClick={() => cambiarCantidad(item.productoId, -1)} className="p-1 text-gray-500 hover:text-red-500">
+                    <Minus size={12} />
+                  </button>
+                  <span className="text-xs font-bold w-5 text-center">{item.cantidad}</span>
+                  <button onClick={() => cambiarCantidad(item.productoId, 1)} className="p-1 text-gray-500 hover:text-orange-600">
+                    <Plus size={12} />
+                  </button>
+                </div>
+                <span className="flex-1 text-sm font-medium text-gray-700">{item.nombre}</span>
+                <span className="text-sm font-bold text-gray-900">S/ {(item.precio * item.cantidad).toFixed(2)}</span>
+              </div>
+            ))}
+          </div>
+        )}
+        <div className="p-4 border-t border-gray-100 bg-white">
+          <div className="flex items-center justify-between mb-3">
+            <span className="text-sm font-semibold text-gray-500">Total nuevos ítems</span>
+            <span className="text-xl font-black text-gray-900">S/ {total.toFixed(2)}</span>
+          </div>
+          <button
+            onClick={handleEnviar}
+            disabled={enviando || carrito.length === 0}
+            className="w-full bg-orange-600 hover:bg-orange-700 disabled:bg-gray-300 disabled:text-gray-500 text-white font-bold py-3 rounded-xl text-sm transition"
+          >
+            {enviando ? 'Enviando...' : 'Enviar a cocina'}
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ============================================================================
+// COMPONENTE PRINCIPAL: MOZO PAGE
+// ============================================================================
 export default function MozoPage() {
   const navigate = useNavigate();
   const { user, logout } = useAuthStore();
-
+  
   const [productos, setProductos] = useState<Producto[]>([]);
   const [busqueda, setBusqueda] = useState('');
-
   const [carrito, setCarrito] = useState<ItemPedidoLocal[]>([]);
   const [mesa, setMesa] = useState('');
   const [tipoConsumo, setTipoConsumo] = useState<'MESA' | 'PARA_LLEVAR' | 'DELIVERY'>('MESA');
   const [notasGenerales, setNotasGenerales] = useState('');
   const [enviando, setEnviando] = useState(false);
-
+  
   const [pedidos, setPedidos] = useState<PedidoActivo[]>([]);
   const [pedidoAgregando, setPedidoAgregando] = useState<PedidoActivo | null>(null);
-
+  
   // Notificaciones SSE
   const [notificaciones, setNotificaciones] = useState<NotificacionListo[]>([]);
   const [modalAbierto, setModalAbierto] = useState(false);
@@ -264,8 +269,12 @@ export default function MozoPage() {
   const alertTimerRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
   const cargarPedidos = useCallback(async () => {
-    const data = await getPedidosActivos();
-    setPedidos(data);
+    try {
+      const data = await getPedidosActivos();
+      setPedidos(data);
+    } catch (error) {
+      console.error("Error cargando pedidos:", error);
+    }
   }, []);
 
   useEffect(() => {
@@ -275,8 +284,8 @@ export default function MozoPage() {
 
   useEffect(() => {
     const token = useAuthStore.getState().token;
-    const es = new EventSource(`/api/kds/eventos?token=${token}`);
-
+    const es = new EventSource(`http://localhost:8080/api/kds/eventos?token=${token}`);
+    
     const agregarNotificacion = (data: { pedidoId: number; numeroOrden: number; mesa: string; tipoConsumo: string }) => {
       setNotificaciones((prev) => {
         if (prev.some((n) => n.pedidoId === data.pedidoId)) return prev;
@@ -301,13 +310,14 @@ export default function MozoPage() {
 
     es.addEventListener('EN_PREPARACION', () => cargarPedidos());
 
-    // R6-4: disponibilidad de productos en tiempo real — evita seguir vendiendo algo agotado
+    // Módulo 6: Escucha de agotados en tiempo real
     es.addEventListener('PRODUCTO_AGOTADO', (e) => {
       const data = JSON.parse(e.data) as { productoId: number; estado: 'AGOTADO_TEMPORAL' | 'AGOTADO_SERVICIO' };
       setProductos((prev) =>
         prev.map((p) => (p.id === data.productoId ? { ...p, estadoDisponibilidad: data.estado } : p))
       );
     });
+
     es.addEventListener('PRODUCTO_DISPONIBLE', (e) => {
       const data = JSON.parse(e.data) as { productoId: number };
       setProductos((prev) =>
@@ -316,20 +326,20 @@ export default function MozoPage() {
     });
 
     es.onerror = () => es.close();
-
     return () => es.close();
   }, [cargarPedidos]);
 
+  // Gestor del indicador parpadeante de alerta
   useEffect(() => {
     const pendientes = notificaciones.filter((n) => !n.entregado);
     if (alertTimerRef.current) clearInterval(alertTimerRef.current);
     if (pendientes.length === 0) return;
-
+    
     alertTimerRef.current = setInterval(() => {
       setAlertando(true);
       setTimeout(() => setAlertando(false), 800);
     }, 10_000);
-
+    
     return () => {
       if (alertTimerRef.current) clearInterval(alertTimerRef.current);
     };
@@ -375,14 +385,20 @@ export default function MozoPage() {
       setMesa('');
       setNotasGenerales('');
       await cargarPedidos();
+    } catch (err: any) {
+      alert(`Error al enviar: ${err.response?.data?.message || err.message}`);
     } finally {
       setEnviando(false);
     }
   };
 
   const handleConfirmar = async (id: number) => {
-    await confirmarPedido(id);
-    await cargarPedidos();
+    try {
+      await confirmarPedido(id);
+      await cargarPedidos();
+    } catch (err: any) {
+      alert(`No se pudo confirmar el pedido: ${err.response?.data?.message || err.message}`);
+    }
   };
 
   const handleEntregar = async (id: number) => {
@@ -402,8 +418,13 @@ export default function MozoPage() {
     } else if (!window.confirm('¿Cancelar este ítem?')) {
       return;
     }
-    await cancelarItem(pedidoId, detalleId, motivo);
-    await cargarPedidos();
+    
+    try {
+      await cancelarItem(pedidoId, detalleId, motivo);
+      await cargarPedidos();
+    } catch (err: any) {
+      alert(`No se pudo cancelar el ítem: ${err.response?.data?.message || err.message}`);
+    }
   };
 
   const handleLogout = () => {
@@ -416,17 +437,18 @@ export default function MozoPage() {
   return (
     <div className="min-h-screen bg-gray-50 flex flex-col font-sans">
       
-      {/* ─── HEADER PRINCIPAL ────────────────────────────────────────────── */}
+      {/* ─── HEADER PRINCIPAL ─── */}
       <header className="bg-white border-b border-gray-200 px-6 py-3 flex items-center justify-between shadow-sm z-10">
         <div className="flex items-center gap-3">
           <div className="bg-orange-500 p-2 rounded-xl">
             <UtensilsCrossed className="text-white w-6 h-6" />
           </div>
           <div>
-            <h1 className="text-xl font-extrabold text-gray-900 tracking-tight leading-none">La Ruta del Sabor</h1>
+            <h1 className="text-xl font-extrabold text-gray-900 tracking-tight leading-none">VERONICA</h1>
             <p className="text-xs text-gray-500 font-medium mt-0.5">Operador: {user?.nombre || user?.correo}</p>
           </div>
         </div>
+        
         <div className="flex items-center gap-4">
           {notificaciones.length > 0 && (
             <button
@@ -454,7 +476,7 @@ export default function MozoPage() {
         </div>
       </header>
 
-      {/* ─── CONTENEDOR PRINCIPAL (2 COLUMNAS) ────────────────────────────── */}
+      {/* ─── CONTENEDOR PRINCIPAL (2 COLUMNAS) ─── */}
       <div className="flex flex-1 overflow-hidden">
         
         {/* PANEL IZQUIERDO: CREACIÓN DE PEDIDOS Y CATÁLOGO */}
@@ -477,7 +499,7 @@ export default function MozoPage() {
                 </button>
               ))}
             </div>
-
+            
             {tipoConsumo === 'MESA' && (
               <input
                 value={mesa}
@@ -486,6 +508,7 @@ export default function MozoPage() {
                 className="w-full px-4 py-3 bg-white border border-gray-200 rounded-xl text-sm font-medium focus:outline-none focus:ring-2 focus:ring-orange-500/40 focus:border-orange-500 transition-colors"
               />
             )}
+            {/* Funcionalidad futura: Integrar mapa de mesas gráfico aquí para reemplazar el input libre */}
 
             <div className="relative">
               <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" size={18} />
@@ -508,7 +531,9 @@ export default function MozoPage() {
             ) : (
               productosFiltrados.map((prod) => {
                 const enCarrito = carrito.find((i) => i.productoId === prod.id);
+                // Módulo 6: Identificar visualmente si el producto no está disponible
                 const agotado = prod.estadoDisponibilidad !== 'DISPONIBLE';
+                
                 return (
                   <div
                     key={prod.id}
@@ -575,7 +600,7 @@ export default function MozoPage() {
                   </div>
                 ))}
               </div>
-
+              
               <div className="p-5 border-t border-gray-100 bg-white">
                 <div className="flex items-center justify-between mb-4">
                   <span className="text-sm font-semibold text-gray-500">Total a cobrar</span>
@@ -605,7 +630,7 @@ export default function MozoPage() {
           <div className="flex items-center justify-between mb-8">
             <div>
               <h2 className="text-2xl font-extrabold text-gray-900 tracking-tight">Monitoreo de Mesas</h2>
-              <p className="text-sm font-medium text-gray-500 mt-1">Gestiona los pedidos enviados a cocina.</p>
+              <p className="text-sm font-medium text-gray-500 mt-1">Gestiona los pedidos y el estado de atención en tiempo real.</p>
             </div>
             <button
               onClick={cargarPedidos}
@@ -628,14 +653,14 @@ export default function MozoPage() {
                 const estado = ESTADO_CONFIG[pedido.estadoActual] || ESTADO_CONFIG['BORRADOR'];
                 const esListo = pedido.estadoActual === 'LISTO';
                 const esBorrador = pedido.estadoActual === 'BORRADOR';
-
+                
                 return (
                   <div
                     key={pedido.id}
                     className={`bg-white rounded-3xl border flex flex-col overflow-hidden transition-all duration-300 ${
-                      esListo 
-                        ? 'border-green-300 shadow-[0_8px_30px_rgb(34,197,94,0.15)] ring-1 ring-green-100' 
-                        : 'border-gray-200 shadow-sm hover:shadow-md'
+                      esListo
+                         ? 'border-green-300 shadow-[0_8px_30px_rgb(34,197,94,0.15)] ring-1 ring-green-100'
+                         : 'border-gray-200 shadow-sm hover:shadow-md'
                     }`}
                   >
                     {/* Header Tarjeta */}
@@ -659,6 +684,7 @@ export default function MozoPage() {
                       {pedido.items.map((item) => {
                         const cancelado = item.estadoItem === 'CANCELADO';
                         const puedeCancelar = !cancelado && (item.estadoItem !== 'ENTREGADO' || puedeCancelarEntregado(user?.rol));
+                        
                         return (
                           <div key={item.detalleId} className={`flex justify-between items-start text-sm border-b border-gray-50 pb-2 last:border-0 last:pb-0 ${cancelado ? 'opacity-40' : ''}`}>
                             <div className="flex gap-2">
@@ -697,6 +723,7 @@ export default function MozoPage() {
                           Enviar a Cocina
                         </button>
                       )}
+                      
                       {esListo && (
                         <button
                           onClick={() => handleEntregar(pedido.id)}
@@ -705,17 +732,20 @@ export default function MozoPage() {
                           <CheckCircle size={18} /> Entregar Pedido
                         </button>
                       )}
+                      
                       {!esBorrador && !esListo && (
                         <div className="w-full py-3 bg-gray-100 text-gray-500 text-sm font-bold rounded-xl text-center flex items-center justify-center gap-2 mb-2">
                           <Loader2 size={16} className="animate-spin opacity-50" /> Esperando cocina...
                         </div>
                       )}
+
+                      {/* Módulo 4: Botón para agregar ítems extra a un pedido en curso */}
                       {!esBorrador && (
                         <button
                           onClick={() => setPedidoAgregando(pedido)}
                           className="w-full bg-white border border-gray-200 hover:border-orange-300 text-gray-600 hover:text-orange-600 text-xs font-bold py-2 rounded-xl transition-colors flex items-center justify-center gap-1.5"
                         >
-                          <Plus size={14} /> Agregar ítems
+                          <Plus size={14} /> Agregar nuevos ítems
                         </button>
                       )}
                     </div>

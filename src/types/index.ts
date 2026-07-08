@@ -57,13 +57,19 @@ export interface Producto {
   nombre: string;
   precioVenta: number;
   categoria?: { id: number; nombre: string };
+  categoriaId?: number; // Soluciona el error en AdminProductosPage
+  tipoProducto?: 'BIEN' | 'SERVICIO'; // Soluciona el error en AdminProductosPage
   estadoRegistro: boolean;
   estadoDisponibilidad: EstadoDisponibilidad;
+  esPreparado?: boolean;               // <-- AÑADIR ESTO
+  tiempoPreparacionMinutos?: number;   // <-- AÑADIR ESTO
 }
 
 export interface Categoria {
   id: number;
   nombre: string;
+  descripcion?: string;
+  estadoRegistro?: boolean;
 }
 
 export interface ItemPedidoLocal {

@@ -182,3 +182,10 @@
     border-right-color: var(--border);
   }
 }
+
+div[data-sileo-toast] {
+  background-color: #0f172a !important; /* Gris muy oscuro / Negro */
+  color: #f8fafc !important; /* Texto blanco */
+  border: 1px solid #334155 !important; /* Borde sutil */
+  box-shadow: 0 20px 25px -5px rgb(0 0 0 / 0.3) !important;
+}

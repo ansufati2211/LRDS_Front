@@ -60,3 +60,6 @@ export const listarDocumentosCobro = (pedidoId: number) =>
 
 export const pagarDocumentoCobro = (documentoId: number, sesionCajaId: number, pagos: PagoItem[]) =>
   api.post<DocumentoCobro>(`/pedidos/documentos-cobro/${documentoId}/pagar`, { sesionCajaId, pagos }).then((r) => r.data);
+
+export const getHistorialPedidos = (inicio: string, fin: string) =>
+  api.get<PedidoActivo[]>(`/pedidos/historial?inicio=${inicio}&fin=${fin}`).then((r) => r.data);
