@@ -13,10 +13,11 @@ export interface UsuarioRequestDTO {
   correo: string;
   password?: string; // Obligatorio al crear, opcional al editar
   rol: string;
+  sedeId?: number;
 }
 
-export const getUsuarios = () => 
-  api.get<Usuario[]>('/usuarios').then((r) => r.data);
+export const getUsuarios = (sedeId?: number) => 
+  api.get<Usuario[]>('/usuarios', { params: { sedeId } }).then((r) => r.data);
 
 export const crearUsuario = (data: UsuarioRequestDTO) => 
   api.post<Usuario>('/usuarios', data).then((r) => r.data);
@@ -27,5 +28,8 @@ export const actualizarUsuario = (id: number, data: UsuarioRequestDTO) =>
 export const eliminarUsuario = (id: number) => 
   api.delete(`/usuarios/${id}`).then((r) => r.data);
 
-export const resetearPassword = (id: number, passwordNueva: string) =>
-  api.put(`/usuarios/${id}/resetear-password`, { passwordNueva }).then((r) => r.data);
+export const activarUsuario = (id: number) => 
+  api.put(`/usuarios/${id}/activar`).then(r => r.data);
+
+export const resetearPassword = (id: number, nuevaPassword: string) => 
+  api.put(`/usuarios/${id}/reset-password`, { nuevaPassword }).then(r => r.data);

@@ -10,6 +10,7 @@ import {
 import type { Categoria, CategoriaRequestDTO, ProductoRequestDTO } from '@/api/catalogo';
 import type { Producto } from '@/types';
 import AdminLayout from '@/components/layouts/AdminLayout';
+import { useAuthStore } from '@/store/authStore'; 
 import { sileo } from 'sileo';
 
 // ============================================================================
@@ -186,6 +187,9 @@ function ModalProducto({ producto, categorias, onClose, onGuardar }: { producto?
 // COMPONENTE PRINCIPAL (PÁGINA)
 // ============================================================================
 export default function AdminProductosPage() {
+  const { user } = useAuthStore();
+  const isAdmin = user?.rol === 'ROLE_SUPER_ADMIN' || user?.rol === 'ROLE_ADMIN_EMPRESA';
+
   const [tab, setTab] = useState<'PRODUCTOS' | 'CATEGORIAS'>('PRODUCTOS');
   const [busqueda, setBusqueda] = useState('');
   
@@ -256,7 +260,9 @@ export default function AdminProductosPage() {
         
         <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
           <div>
-            <h1 className="text-3xl font-black text-gray-900 tracking-tight">Catálogo y Menú</h1>
+            <h1 className="text-3xl font-black text-gray-900 tracking-tight">
+              Catálogo y <span className="text-transparent bg-clip-text bg-gradient-to-r from-orange-500 to-amber-500">Menú</span>
+            </h1>
             <p className="text-gray-500 font-medium mt-1">Administración de precios, platos y categorías del restaurante.</p>
           </div>
         </div>
@@ -292,11 +298,13 @@ export default function AdminProductosPage() {
               />
             </div>
 
-            {tab === 'PRODUCTOS' ? (
+            {/* 🔥 MODO LECTURA: Solo muestra los botones de creación a los administradores globales */}
+            {isAdmin && tab === 'PRODUCTOS' && (
               <button onClick={() => setModalProd({ isOpen: true, data: null })} className="w-full sm:w-auto bg-gradient-to-r from-orange-500 to-amber-500 hover:from-orange-600 hover:to-amber-600 text-white shadow-lg shadow-orange-500/30 px-6 py-3 rounded-xl font-bold flex justify-center items-center gap-2 transition-all active:scale-95 whitespace-nowrap">
                 <Plus size={18} /> Nuevo Producto
               </button>
-            ) : (
+            )}
+            {isAdmin && tab === 'CATEGORIAS' && (
               <button onClick={() => setModalCat({ isOpen: true, data: null })} className="w-full sm:w-auto bg-gradient-to-r from-orange-500 to-amber-500 hover:from-orange-600 hover:to-amber-600 text-white shadow-lg shadow-orange-500/30 px-6 py-3 rounded-xl font-bold flex justify-center items-center gap-2 transition-all active:scale-95 whitespace-nowrap">
                 <Plus size={18} /> Nueva Categoría
               </button>
@@ -322,17 +330,17 @@ export default function AdminProductosPage() {
                     <th className="px-8 py-5">Precio Venta</th>
                     <th className="px-8 py-5">Disponibilidad</th>
                     <th className="px-8 py-5 text-center">Estado del Sistema</th>
-                    <th className="px-8 py-5 text-right">Acciones</th>
+                    {isAdmin && <th className="px-8 py-5 text-right">Acciones</th>}
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-gray-50">
                   {productosFiltrados.length === 0 ? (
                     <tr>
-                      <td colSpan={6} className="px-8 py-32 text-center text-gray-400">
+                      <td colSpan={isAdmin ? 6 : 5} className="px-8 py-32 text-center text-gray-400">
                         <div className="flex flex-col items-center justify-center">
                           <div className="w-16 h-16 bg-gray-50 rounded-2xl flex items-center justify-center mb-4"><Package size={24} className="text-gray-300"/></div>
                           <p className="font-bold text-gray-600 text-lg">Catálogo Vacío</p>
-                          <p className="text-sm mt-1">No se encontraron productos con esos filtros.</p>
+                          <p className="text-sm mt-1">{isAdmin ? 'Crea un producto para empezar.' : 'Contacta al administrador para gestionar el menú.'}</p>
                         </div>
                       </td>
                     </tr>
@@ -351,7 +359,6 @@ export default function AdminProductosPage() {
                       <td className="px-8 py-4 text-gray-500 font-medium">{categorias.find(c => c.id === p.categoriaId)?.nombre || 'Sin categoría'}</td>
                       <td className="px-8 py-4 font-black text-gray-900 text-base">S/ {p.precioVenta.toFixed(2)}</td>
                       
-                      {/* CORRECCIÓN DE LA LÓGICA DE DISPONIBILIDAD */}
                       <td className="px-8 py-4">
                         {!p.estadoRegistro ? (
                           <span className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-[10px] font-bold uppercase tracking-widest text-slate-500 bg-slate-100 border border-slate-200">
@@ -373,16 +380,20 @@ export default function AdminProductosPage() {
                           {p.estadoRegistro ? 'Activo / Visible' : 'Inactivo / Oculto'}
                         </span>
                       </td>
-                      <td className="px-8 py-4 text-right">
-                        <div className="flex justify-end gap-2">
-                          <button onClick={() => setModalProd({ isOpen: true, data: p })} className="p-2.5 text-blue-600 bg-white border border-gray-200 hover:border-blue-200 hover:bg-blue-50 rounded-xl transition-all shadow-sm"><Edit2 size={16} /></button>
-                          {p.estadoRegistro ? (
-                            <button onClick={() => handleEliminarProducto(p.id)} className="p-2.5 text-red-600 bg-white border border-gray-200 hover:border-red-200 hover:bg-red-50 rounded-xl transition-all shadow-sm" title="Ocultar Producto"><Trash2 size={16} /></button>
-                          ) : (
-                            <button onClick={() => handleActivarProducto(p.id)} className="p-2.5 text-emerald-600 bg-white border border-gray-200 hover:border-emerald-200 hover:bg-emerald-50 rounded-xl transition-all shadow-sm" title="Restaurar Producto"><RotateCcw size={16} /></button>
-                          )}
-                        </div>
-                      </td>
+
+                      {/* 🔥 MODO LECTURA: Oculta los botones de edición al gerente de sede */}
+                      {isAdmin && (
+                        <td className="px-8 py-4 text-right">
+                          <div className="flex justify-end gap-2">
+                            <button onClick={() => setModalProd({ isOpen: true, data: p })} className="p-2.5 text-blue-600 bg-white border border-gray-200 hover:border-blue-200 hover:bg-blue-50 rounded-xl transition-all shadow-sm"><Edit2 size={16} /></button>
+                            {p.estadoRegistro ? (
+                              <button onClick={() => handleEliminarProducto(p.id)} className="p-2.5 text-red-600 bg-white border border-gray-200 hover:border-red-200 hover:bg-red-50 rounded-xl transition-all shadow-sm" title="Ocultar Producto"><Trash2 size={16} /></button>
+                            ) : (
+                              <button onClick={() => handleActivarProducto(p.id)} className="p-2.5 text-emerald-600 bg-white border border-gray-200 hover:border-emerald-200 hover:bg-emerald-50 rounded-xl transition-all shadow-sm" title="Restaurar Producto"><RotateCcw size={16} /></button>
+                            )}
+                          </div>
+                        </td>
+                      )}
                     </tr>
                   ))}
                 </tbody>
@@ -395,17 +406,17 @@ export default function AdminProductosPage() {
                   <tr>
                     <th className="px-8 py-5 w-1/3">Categoría</th>
                     <th className="px-8 py-5 text-center">Estado del Sistema</th>
-                    <th className="px-8 py-5 text-right">Acciones</th>
+                    {isAdmin && <th className="px-8 py-5 text-right">Acciones</th>}
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-gray-50">
                   {categoriasFiltradas.length === 0 ? (
                     <tr>
-                      <td colSpan={3} className="px-8 py-32 text-center text-gray-400">
+                      <td colSpan={isAdmin ? 3 : 2} className="px-8 py-32 text-center text-gray-400">
                         <div className="flex flex-col items-center justify-center">
                           <div className="w-16 h-16 bg-gray-50 rounded-2xl flex items-center justify-center mb-4"><LayoutList size={24} className="text-gray-300"/></div>
                           <p className="font-bold text-gray-600 text-lg">Sin Categorías</p>
-                          <p className="text-sm mt-1">Crea una familia para empezar a organizar tu menú.</p>
+                          <p className="text-sm mt-1">{isAdmin ? 'Crea una familia para empezar a organizar tu menú.' : 'Contacta al administrador para gestionar el menú.'}</p>
                         </div>
                       </td>
                     </tr>
@@ -420,16 +431,20 @@ export default function AdminProductosPage() {
                           {c.estadoRegistro ? 'Activo / Visible' : 'Inactivo / Oculto'}
                         </span>
                       </td>
-                      <td className="px-8 py-4 text-right">
-                        <div className="flex justify-end gap-2">
-                          <button onClick={() => setModalCat({ isOpen: true, data: c })} className="p-2.5 text-blue-600 bg-white border border-gray-200 hover:border-blue-200 hover:bg-blue-50 rounded-xl transition-all shadow-sm"><Edit2 size={16} /></button>
-                          {c.estadoRegistro ? (
-                            <button onClick={() => handleEliminarCategoria(c.id)} className="p-2.5 text-red-600 bg-white border border-gray-200 hover:border-red-200 hover:bg-red-50 rounded-xl transition-all shadow-sm" title="Ocultar Categoría"><Trash2 size={16} /></button>
-                          ) : (
-                            <button onClick={() => handleActivarCategoria(c.id)} className="p-2.5 text-emerald-600 bg-white border border-gray-200 hover:border-emerald-200 hover:bg-emerald-50 rounded-xl transition-all shadow-sm" title="Restaurar Categoría"><RotateCcw size={16} /></button>
-                          )}
-                        </div>
-                      </td>
+
+                      {/* 🔥 MODO LECTURA: Oculta acciones de categoría al gerente */}
+                      {isAdmin && (
+                        <td className="px-8 py-4 text-right">
+                          <div className="flex justify-end gap-2">
+                            <button onClick={() => setModalCat({ isOpen: true, data: c })} className="p-2.5 text-blue-600 bg-white border border-gray-200 hover:border-blue-200 hover:bg-blue-50 rounded-xl transition-all shadow-sm"><Edit2 size={16} /></button>
+                            {c.estadoRegistro ? (
+                              <button onClick={() => handleEliminarCategoria(c.id)} className="p-2.5 text-red-600 bg-white border border-gray-200 hover:border-red-200 hover:bg-red-50 rounded-xl transition-all shadow-sm" title="Ocultar Categoría"><Trash2 size={16} /></button>
+                            ) : (
+                              <button onClick={() => handleActivarCategoria(c.id)} className="p-2.5 text-emerald-600 bg-white border border-gray-200 hover:border-emerald-200 hover:bg-emerald-50 rounded-xl transition-all shadow-sm" title="Restaurar Categoría"><RotateCcw size={16} /></button>
+                            )}
+                          </div>
+                        </td>
+                      )}
                     </tr>
                   ))}
                 </tbody>

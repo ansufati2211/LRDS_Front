@@ -5,30 +5,30 @@ import type { AuthResponse } from '@/types/auth';
 interface AuthState {
   token: string | null;
   user: Omit<AuthResponse, 'token'> | null;
+  sedeSeleccionadaId: number | null; 
   setAuth: (data: AuthResponse) => void;
+  setSedeSeleccionadaId: (id: number | null) => void;
   logout: () => void;
-  isAuthenticated: () => boolean;
+  isAuthenticated: () => boolean; // <-- RESTAURADO
 }
 
 export const useAuthStore = create<AuthState>()(
   persist(
-    (set, get) => ({
+    // Agregamos 'get' aquí de nuevo para poder leer el token
+    (set, get) => ({ 
       token: null,
       user: null,
-
+      sedeSeleccionadaId: null,
       setAuth: (data) => {
         const { token, ...user } = data;
-        set({ token, user }); // Persist lo guarda en localStorage automáticamente
+        set({ token, user });
       },
-
-      logout: () => {
-        set({ token: null, user: null }); // Persist lo borra automáticamente
-      },
-
-      isAuthenticated: () => !!get().token,
+      setSedeSeleccionadaId: (id) => set({ sedeSeleccionadaId: id }),
+      logout: () => set({ token: null, user: null, sedeSeleccionadaId: null }),
+      isAuthenticated: () => !!get().token, // <-- RESTAURADO
     }),
     {
-      name: 'veronica-auth', // Nombre de la llave en localStorage
+      name: 'auth-storage',
     }
   )
 );

@@ -2,7 +2,7 @@ import axios from 'axios';
 import { useAuthStore } from '@/store/authStore';
 
 const api = axios.create({
-  baseURL: 'http://localhost:8080/api',
+  baseURL: 'http://localhost:8080/api/v1', // URL V1 según regla #2
   headers: {
     'Content-Type': 'application/json',
   },
@@ -19,8 +19,6 @@ api.interceptors.request.use((config) => {
 api.interceptors.response.use(
   (response) => response,
   (error) => {
-    // ¡SOLUCIÓN MAESTRA! Solo deslogueamos si el token venció (401).
-    // Si es 403 (Modulo No Habilitado), dejamos que la página lo maneje.
     if (error.response && error.response.status === 401) {
       useAuthStore.getState().logout();
       window.location.href = '/login';

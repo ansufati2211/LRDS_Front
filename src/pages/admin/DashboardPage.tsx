@@ -1,17 +1,15 @@
 import { useEffect, useState, useCallback } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { 
   DollarSign, ShoppingBag, TrendingUp, AlertTriangle, 
-  RefreshCw, Download, Sparkles, Clock, ArrowRight 
+  RefreshCw, Download, Sparkles, Clock, ArrowRight,
+  Wallet, UtensilsCrossed, ChefHat
 } from 'lucide-react';
 import { getDashboard, getAlertasStock } from '@/api/reportes';
 import type { DashboardVentas, InsumoAlerta } from '@/api/reportes';
 import { useAuthStore } from '@/store/authStore';
 import { fechaPeruISO } from '@/lib/datetimePeru';
 import AdminLayout from '@/components/layouts/AdminLayout';
-
-// ============================================================================
-// COMPONENTES AUXILIARES REDISEÑADOS
-// ============================================================================
 
 const MetricCard = ({ icon, title, value, subtitle, colorClass, bgClass, trend }: any) => (
   <div className="bg-white p-7 rounded-[2rem] border border-gray-100 shadow-sm hover:shadow-xl hover:-translate-y-1 transition-all duration-300 flex flex-col justify-between group">
@@ -35,7 +33,6 @@ const GraficoBarras = ({ datos }: { datos: DashboardVentas['detalleDiario'] }) =
   const W = 600, H = 250, PL = 50, PR = 12, PT = 20, PB = 36;
   const innerW = W - PL - PR, innerH = H - PT - PB;
   const barW = Math.max(6, innerW / datos.length - 8);
-
   return (
     <svg viewBox={`0 0 ${W} ${H}`} className="w-full h-full min-h-[250px] overflow-visible">
       {[0, 0.25, 0.5, 0.75, 1].map((t) => (
@@ -59,15 +56,12 @@ const GraficoBarras = ({ datos }: { datos: DashboardVentas['detalleDiario'] }) =
   );
 };
 
-// ============================================================================
-// COMPONENTE PRINCIPAL DASHBOARD
-// ============================================================================
-
 function hoy() { return fechaPeruISO(); }
 function hace30Dias() { const d = new Date(); d.setDate(d.getDate() - 30); return fechaPeruISO(d); }
 
 export default function DashboardPage() {
-  const { user } = useAuthStore();
+  const navigate = useNavigate();
+  const { user, sedeSeleccionadaId } = useAuthStore();
   const [inicio, setInicio] = useState(hace30Dias());
   const [fin, setFin] = useState(hoy());
   const [dashboard, setDashboard] = useState<DashboardVentas | null>(null);
@@ -77,38 +71,47 @@ export default function DashboardPage() {
 
   const horaActual = new Date().getHours();
   const saludo = horaActual < 12 ? 'Buenos días' : horaActual < 18 ? 'Buenas tardes' : 'Buenas noches';
-  
-  // Nombre seguro
   const primerNombre = user?.nombre?.split(' ')[0] || user?.correo?.split('@')[0] || 'Administrador';
 
   const cargarDatos = useCallback(async () => {
     setLoading(true); setError('');
     try {
-      const [dashData, alertasData] = await Promise.all([getDashboard(inicio, fin), getAlertasStock()]);
-      setDashboard(dashData); setAlertas(alertasData);
-    } catch { setError('Error al cargar métricas.'); } finally { setLoading(false); }
-  }, [inicio, fin]);
+      const [dashData, alertasData] = await Promise.all([
+        getDashboard(inicio, fin, sedeSeleccionadaId || undefined), 
+        getAlertasStock(sedeSeleccionadaId || undefined)
+      ]);
+      setDashboard(dashData); 
+      setAlertas(alertasData);
+    } catch { 
+      setError('Error al cargar métricas.'); 
+    } finally { 
+      setLoading(false); 
+    }
+  }, [inicio, fin, sedeSeleccionadaId]);
 
   useEffect(() => { cargarDatos(); }, [cargarDatos]);
 
   const descargarExcel = () => {
     const token = useAuthStore.getState().token;
-    window.open(`/api/reportes/excel?inicio=${inicio}&fin=${fin}&token=${token}`, '_blank');
+    let url = `/api/v1/reportes/ventas/exportar-excel?inicio=${inicio}&fin=${fin}&token=${token}`;
+    if (sedeSeleccionadaId) url += `&sedeId=${sedeSeleccionadaId}`;
+    window.open(url, '_blank');
   };
 
-  const ticketPromedio = dashboard && dashboard.pedidosTotalesMensuales > 0 ? (dashboard.ingresosTotalesMensuales / dashboard.pedidosTotalesMensuales) : 0;
+  const ticketPromedio = dashboard && dashboard.pedidosTotalesMensuales > 0 
+    ? (dashboard.ingresosTotalesMensuales / dashboard.pedidosTotalesMensuales) 
+    : 0;
 
   return (
     <AdminLayout>
       <div className="max-w-[1400px] mx-auto space-y-8">
         
-        {/* HERO BANNER */}
+        {/* BANNER PRINCIPAL */}
         <div className="relative bg-[#0a0f1c] rounded-[2.5rem] p-8 md:p-12 overflow-hidden shadow-2xl border border-gray-800/60">
           <div className="absolute top-0 right-0 w-[600px] h-[600px] bg-gradient-to-bl from-orange-500/30 to-purple-600/10 rounded-full blur-[100px] -translate-y-1/2 translate-x-1/4 pointer-events-none"></div>
           <div className="absolute bottom-0 left-0 w-[400px] h-[400px] bg-gradient-to-tr from-blue-600/20 to-emerald-500/10 rounded-full blur-[80px] translate-y-1/3 -translate-x-1/4 pointer-events-none"></div>
           
           <div className="relative z-10 flex flex-col xl:flex-row justify-between items-start xl:items-center gap-10">
-            
             <div className="max-w-2xl">
               <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-white/5 border border-white/10 text-orange-400 text-xs font-bold uppercase tracking-widest mb-5 backdrop-blur-md">
                 <Sparkles size={14} /> Resumen Operativo
@@ -124,49 +127,68 @@ export default function DashboardPage() {
               </p>
             </div>
             
-            {/* CONTROLES (Ahora con el botón de EXCEL) */}
             <div className="flex flex-col sm:flex-row items-center gap-3 bg-white/5 backdrop-blur-2xl p-2.5 rounded-[2rem] border border-white/10 shadow-2xl w-full sm:w-auto">
-              
               <div className="flex items-center gap-3 px-5 py-3 bg-white/5 rounded-[1.5rem] border border-white/5 w-full sm:w-auto hover:bg-white/10 transition-colors">
                 <div className="flex flex-col">
                   <span className="text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-1 flex items-center gap-1"><Clock size={10}/> Inicio</span>
                   <input type="date" value={inicio} onChange={(e) => setInicio(e.target.value)} className="bg-transparent text-white text-sm font-bold outline-none cursor-pointer [&::-webkit-calendar-picker-indicator]:filter-[invert(1)] [&::-webkit-calendar-picker-indicator]:opacity-60 hover:[&::-webkit-calendar-picker-indicator]:opacity-100 transition-opacity" />
                 </div>
               </div>
-
               <ArrowRight className="text-gray-500 hidden sm:block" size={16} />
-
               <div className="flex items-center gap-3 px-5 py-3 bg-white/5 rounded-[1.5rem] border border-white/5 w-full sm:w-auto hover:bg-white/10 transition-colors">
                 <div className="flex flex-col">
                   <span className="text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-1 flex items-center gap-1"><Clock size={10}/> Fin</span>
                   <input type="date" value={fin} onChange={(e) => setFin(e.target.value)} className="bg-transparent text-white text-sm font-bold outline-none cursor-pointer [&::-webkit-calendar-picker-indicator]:filter-[invert(1)] [&::-webkit-calendar-picker-indicator]:opacity-60 hover:[&::-webkit-calendar-picker-indicator]:opacity-100 transition-opacity" />
                 </div>
               </div>
-
               <button onClick={cargarDatos} disabled={loading} title="Actualizar Datos" className="w-full sm:w-auto bg-gradient-to-r from-orange-500 to-amber-500 hover:from-orange-400 hover:to-amber-400 text-white p-4 rounded-[1.5rem] transition-all shadow-lg shadow-orange-500/25 active:scale-95 flex justify-center items-center">
                 <RefreshCw size={22} className={loading ? 'animate-spin' : ''} />
               </button>
-
-              {/* Botón de Excel Restaurado */}
               <button onClick={descargarExcel} title="Descargar Reporte Excel" className="w-full sm:w-auto bg-white/10 hover:bg-white/20 text-white p-4 rounded-[1.5rem] transition-all flex justify-center items-center gap-2 border border-white/10">
                 <Download size={22} />
                 <span className="sm:hidden font-bold">Descargar Excel</span>
               </button>
-
             </div>
           </div>
         </div>
 
-        {error && <div className="bg-red-50 border border-red-200 text-red-700 px-6 py-4 rounded-2xl text-sm font-bold">{error}</div>}
+        {/* ========================================================================= */}
+        {/* NUEVA SECCIÓN: BOTONES DE ACCESO RÁPIDO PARA EL DUEÑO (SALTO OPERATIVO) */}
+        {/* ========================================================================= */}
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+          <button onClick={() => navigate('/cajero')} className="bg-gradient-to-br from-emerald-500 to-teal-600 p-6 rounded-[2rem] text-white flex items-center justify-between shadow-lg shadow-emerald-500/20 hover:scale-[1.03] transition-transform group text-left">
+             <div className="flex items-center gap-4">
+               <div className="bg-white/20 p-3 rounded-2xl group-hover:bg-white/30 transition-colors"><Wallet size={26} strokeWidth={2.5} /></div>
+               <div><p className="font-black text-xl tracking-tight">Caja y Pagos</p><p className="text-xs font-bold text-emerald-100 uppercase tracking-widest mt-0.5">Operativa Financiera</p></div>
+             </div>
+             <ArrowRight className="group-hover:translate-x-1 transition-transform" />
+          </button>
+          
+          <button onClick={() => navigate('/mozo')} className="bg-gradient-to-br from-blue-500 to-indigo-600 p-6 rounded-[2rem] text-white flex items-center justify-between shadow-lg shadow-blue-500/20 hover:scale-[1.03] transition-transform group text-left">
+             <div className="flex items-center gap-4">
+               <div className="bg-white/20 p-3 rounded-2xl group-hover:bg-white/30 transition-colors"><UtensilsCrossed size={26} strokeWidth={2.5} /></div>
+               <div><p className="font-black text-xl tracking-tight">Salón (Mozos)</p><p className="text-xs font-bold text-blue-100 uppercase tracking-widest mt-0.5">Toma de Pedidos</p></div>
+             </div>
+             <ArrowRight className="group-hover:translate-x-1 transition-transform" />
+          </button>
+          
+          <button onClick={() => navigate('/kds')} className="bg-gradient-to-br from-orange-500 to-amber-500 p-6 rounded-[2rem] text-white flex items-center justify-between shadow-lg shadow-orange-500/20 hover:scale-[1.03] transition-transform group text-left">
+             <div className="flex items-center gap-4">
+               <div className="bg-white/20 p-3 rounded-2xl group-hover:bg-white/30 transition-colors"><ChefHat size={26} strokeWidth={2.5} /></div>
+               <div><p className="font-black text-xl tracking-tight">Cocina (KDS)</p><p className="text-xs font-bold text-orange-100 uppercase tracking-widest mt-0.5">Pantalla de Chef</p></div>
+             </div>
+             <ArrowRight className="group-hover:translate-x-1 transition-transform" />
+          </button>
+        </div>
 
-        {/* Tarjetas Superiores */}
+        {error && <div className="bg-red-50 border border-red-200 text-red-700 px-6 py-4 rounded-2xl text-sm font-bold">{error}</div>}
+        
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
           <MetricCard icon={<DollarSign size={28} strokeWidth={2.5} />} title="Ingresos Totales" value={`S/ ${dashboard?.ingresosTotalesMensuales.toFixed(2) || '0.00'}`} subtitle="Dinero cobrado en caja" bgClass="bg-green-100/50" colorClass="text-green-600" trend="+12.5%" />
           <MetricCard icon={<ShoppingBag size={28} strokeWidth={2.5} />} title="Pedidos Pagados" value={dashboard?.pedidosTotalesMensuales || 0} subtitle="Mesas y deliveries completados" bgClass="bg-blue-100/50" colorClass="text-blue-600" />
           <MetricCard icon={<TrendingUp size={28} strokeWidth={2.5} />} title="Ticket Promedio" value={`S/ ${ticketPromedio.toFixed(2)}`} subtitle="Gasto promedio por cliente" bgClass="bg-purple-100/50" colorClass="text-purple-600" />
         </div>
-
-        {/* Área Principal Inferior */}
+        
         <div className="grid grid-cols-1 xl:grid-cols-3 gap-6">
           
           <div className="xl:col-span-2 bg-white rounded-[2.5rem] border border-gray-100 shadow-sm p-8 flex flex-col min-h-[420px]">
@@ -190,11 +212,11 @@ export default function DashboardPage() {
                 <p className="text-sm mt-1">Ningún insumo bajo el límite.</p>
               </div>
             ) : (
-              <div className="flex-1 overflow-y-auto pr-2 space-y-3">
+              <div className="flex-1 overflow-y-auto pr-2 space-y-3 custom-scrollbar">
                 {alertas.map((a) => {
                   const critico = a.stockActual <= 0;
                   return (
-                    <div key={a.id} className={`p-5 rounded-2xl border flex justify-between items-center transition-all hover:scale-[1.02] ${critico ? 'bg-red-50/50 border-red-100' : 'bg-orange-50/50 border-orange-100'}`}>
+                    <div key={a.insumoId} className={`p-5 rounded-2xl border flex justify-between items-center transition-all hover:scale-[1.02] ${critico ? 'bg-red-50/50 border-red-100' : 'bg-orange-50/50 border-orange-100'}`}>
                       <div>
                         <span className={`font-black text-[15px] ${critico ? 'text-red-900' : 'text-orange-900'}`}>{a.nombre}</span>
                         <p className="text-xs font-bold text-gray-500 mt-1 uppercase tracking-wider">Min: {a.stockMinimo} {a.unidadMedida}</p>
@@ -210,7 +232,6 @@ export default function DashboardPage() {
               </div>
             )}
           </div>
-
         </div>
       </div>
     </AdminLayout>

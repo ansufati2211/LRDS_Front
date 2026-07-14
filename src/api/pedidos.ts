@@ -32,23 +32,23 @@ export const crearPedido = (data: CrearPedidoRequest) =>
   api.post('/pedidos', data).then((r) => r.data);
 
 export const confirmarPedido = (id: number) =>
-  api.put(`/pedidos/${id}/confirmar`).then((r) => r.data);
+  api.put(`/pedidos/${id}/confirmar`, {}).then((r) => r.data);
 
 export const entregarPedido = (id: number) =>
-  api.put(`/pedidos/${id}/entregar`).then((r) => r.data);
+  api.put(`/pedidos/${id}/entregar`, {}).then((r) => r.data);
 
+// 🔥 FIX: SIEMPRE ENVIAR UN OBJETO JSON PARA EVITAR EL ERROR 500
 export const cancelarPedido = (id: number) =>
-  api.put(`/pedidos/${id}/cancelar`).then((r) => r.data);
-
-// --- Módulo 4 ---
+  api.put(`/pedidos/${id}/cancelar`, {}).then((r) => r.data);
 
 export const agregarItems = (
   pedidoId: number,
   items: { productoId: number; cantidad: number; notasPreparacion: string }[]
 ) => api.post(`/pedidos/${pedidoId}/items`, { items }).then((r) => r.data);
 
+// 🔥 FIX: SIEMPRE ENVIAR UN OBJETO JSON PARA EVITAR EL ERROR 500
 export const cancelarItem = (pedidoId: number, detalleId: number, motivo?: string) =>
-  api.put(`/pedidos/${pedidoId}/items/${detalleId}/cancelar`, motivo ? { motivo } : undefined).then((r) => r.data);
+  api.put(`/pedidos/${pedidoId}/items/${detalleId}/cancelar`, { motivo: motivo || '' }).then((r) => r.data);
 
 export const crearDocumentoCobro = (
   pedidoId: number,
@@ -61,5 +61,5 @@ export const listarDocumentosCobro = (pedidoId: number) =>
 export const pagarDocumentoCobro = (documentoId: number, sesionCajaId: number, pagos: PagoItem[]) =>
   api.post<DocumentoCobro>(`/pedidos/documentos-cobro/${documentoId}/pagar`, { sesionCajaId, pagos }).then((r) => r.data);
 
-export const getHistorialPedidos = (inicio: string, fin: string) =>
-  api.get<PedidoActivo[]>(`/pedidos/historial?inicio=${inicio}&fin=${fin}`).then((r) => r.data);
+export const getHistorialPedidos = (inicio: string, fin: string, sedeId?: number) => 
+  api.get<PedidoActivo[]>('/pedidos/historial', { params: { inicio, fin, sedeId } }).then((r) => r.data);

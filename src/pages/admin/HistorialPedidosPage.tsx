@@ -7,6 +7,7 @@ import { getHistorialPedidos } from '@/api/pedidos';
 import type { PedidoActivo } from '@/types';
 import { fechaPeruISO, formatearFechaHoraPeru } from '@/lib/datetimePeru';
 import AdminLayout from '@/components/layouts/AdminLayout';
+import { useAuthStore } from '@/store/authStore';
 import { sileo } from 'sileo';
 
 function hoy() { return fechaPeruISO(); }
@@ -95,20 +96,24 @@ export default function HistorialPedidosPage() {
   const [busqueda, setBusqueda] = useState('');
   const [pedidoSeleccionado, setPedidoSeleccionado] = useState<PedidoActivo | null>(null);
 
+  // 🚨 EXTRAEMOS LA SEDE GLOBAL PARA MULTI-TENANT
+  const { sedeSeleccionadaId } = useAuthStore();
+
   const cargarHistorial = useCallback(async () => {
     setLoading(true);
     try {
-      const data = await getHistorialPedidos(inicio, fin);
+      // 🚨 ENVIAMOS LA SEDE A LA API
+      const data = await getHistorialPedidos(inicio, fin, sedeSeleccionadaId || undefined);
       setPedidos(data);
       if (data.length > 0) {
         sileo.success({ title: `Se cargaron ${data.length} pedidos.` });
       } else {
-        sileo.error({ title: 'No hay pedidos en este rango.' });
+        sileo.error({ title: 'No hay pedidos en este rango para la sede seleccionada.' });
       }
     } catch (err: any) {
       sileo.error({ title: err.response?.data?.message || 'Error de conexión al servidor.' });
     } finally { setLoading(false); }
-  }, [inicio, fin]);
+  }, [inicio, fin, sedeSeleccionadaId]); // 🚨 SE RECARGA AL CAMBIAR DE SEDE
 
   useEffect(() => { cargarHistorial(); }, [cargarHistorial]);
 
@@ -122,15 +127,16 @@ export default function HistorialPedidosPage() {
       <div className="max-w-[1400px] mx-auto space-y-6">
         
         {/* ========================================================= */}
-        {/* HEADER DE LA PANTALLA                                     */}
+        {/* HEADER DE LA PANTALLA CON DEGRADADO                       */}
         {/* ========================================================= */}
         <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
           <div>
-            <h1 className="text-3xl font-black text-gray-900 tracking-tight">Registro de Ventas</h1>
+            <h1 className="text-3xl font-black text-gray-900 tracking-tight">
+              Registro de <span className="text-transparent bg-clip-text bg-gradient-to-r from-blue-500 to-cyan-500">Ventas</span>
+            </h1>
             <p className="text-gray-500 font-medium mt-1">Auditoría detallada de todos los tickets cerrados en caja.</p>
           </div>
           
-          {/* Botón de Refrescar: Color dominante y de alto contraste */}
           <button onClick={cargarHistorial} disabled={loading} className="bg-gray-900 hover:bg-black text-white shadow-lg shadow-gray-900/20 px-6 py-3 rounded-xl font-bold flex items-center gap-2 transition-all active:scale-95">
             <Filter size={18} /> {loading ? 'Refrescando...' : 'Refrescar Datos'}
           </button>
@@ -141,7 +147,6 @@ export default function HistorialPedidosPage() {
         {/* ========================================================= */}
         <div className="bg-slate-100/80 p-5 rounded-[1.5rem] border border-slate-200 shadow-inner flex flex-col xl:flex-row items-center justify-between gap-5">
           
-          {/* Búsqueda Rápida: Resalta por ser blanca sobre el fondo gris */}
           <div className="w-full xl:w-96 flex items-center gap-3 px-5 py-3 bg-white border border-gray-200 shadow-sm rounded-xl focus-within:ring-2 focus-within:ring-blue-500 focus-within:border-blue-500 transition-all">
             <Search size={18} className="text-gray-400" />
             <input 
@@ -155,7 +160,6 @@ export default function HistorialPedidosPage() {
 
           <div className="hidden xl:block w-px h-8 bg-slate-300"></div>
 
-          {/* Filtros de Fecha Inline (Sin la flecha desplegable) */}
           <div className="flex flex-wrap items-center gap-4 w-full xl:w-auto">
             <div className="flex items-center gap-3 px-5 py-2.5 border border-gray-200 shadow-sm rounded-xl hover:border-gray-300 transition-colors bg-white">
               <Calendar size={18} className="text-blue-500"/>
