@@ -7,6 +7,7 @@ export interface Insumo {
   stockActual?: number;
   stockMinimo: number;
   costoUnitario?: number;
+  costo?: number;
   stockReservado?: number;
   estadoRegistro: boolean;
 }
@@ -49,17 +50,24 @@ export interface RecetaDetalleRequest {
 export const getInsumos = (sedeId?: number) =>
   api.get<any[]>('/inventario/insumos', { params: { sedeId } }).then((r) => r.data);
 
-export const crearInsumo = (data: InsumoRequestDTO) =>
-   api.post<Insumo>('/inventario/insumos', data).then(r => r.data);
+export const crearInsumo = (data: InsumoRequestDTO) => {
+  const payload = { ...data };
+  delete (payload as any).stockMinimo; 
+  return api.post<Insumo>('/inventario/insumos', payload).then(r => r.data);
+};
 
-export const actualizarInsumo = (id: number, data: InsumoRequestDTO) =>
-   api.put<Insumo>(`/inventario/insumos/${id}`, data).then(r => r.data);
+export const actualizarInsumo = (id: number, data: InsumoRequestDTO) => {
+  const payload = { ...data };
+  delete (payload as any).stockMinimo; 
+  return api.put<Insumo>(`/inventario/insumos/${id}`, payload).then(r => r.data);
+};
 
 export const eliminarInsumo = (id: number) =>
    api.delete(`/inventario/insumos/${id}`).then(r => r.data);
 
+// 🔥 FIX: Enviamos un objeto JSON vacío {} para evitar el error 500 del Backend
 export const activarInsumo = (id: number) =>
-   api.put(`/inventario/insumos/${id}/activar`).then(r => r.data);
+   api.put(`/inventario/insumos/${id}/activar`, {}).then(r => r.data);
 
 // FIX APLICADO: Ruta correcta para obtener receta
 export const getRecetaProducto = (productoId: number) =>
@@ -69,14 +77,17 @@ export const getRecetaProducto = (productoId: number) =>
 export const guardarReceta = (productoId: number, detalles: RecetaDetalleRequest[]) =>
    api.post(`/inventario/productos/${productoId}/receta`, detalles).then(r => r.data);
 
+// ==========================================
+// KARDEX Y MOVIMIENTOS (Restaurados)
+// ==========================================
 export const registrarEntrada = (data: EntradaAlmacenRequestDTO) =>
-   api.post('/inventario/kardex/entrada', data).then(r => r.data);
+   api.post('/inventario/entradas', data).then(r => r.data);
 
 export const registrarMerma = (data: MermaRequestDTO) =>
-   api.post('/inventario/kardex/merma', data).then(r => r.data);
+   api.post('/inventario/mermas', data).then(r => r.data);
 
 export const registrarAjuste = (data: AjusteInventarioRequestDTO) =>
-   api.post('/inventario/kardex/ajuste', data).then(r => r.data);
+   api.post('/inventario/ajustes', data).then(r => r.data);
 
 export const getKardex = (insumoId: number) =>
-   api.get(`/inventario/insumos/${insumoId}/kardex`).then(r => r.data);
+   api.get(`/inventario/kardex/${insumoId}`).then(r => r.data);

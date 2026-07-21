@@ -91,9 +91,10 @@ export default function DashboardPage() {
 
   useEffect(() => { cargarDatos(); }, [cargarDatos]);
 
-  const descargarExcel = () => {
+const descargarExcel = () => {
     const token = useAuthStore.getState().token;
-    let url = `/api/v1/reportes/ventas/exportar-excel?inicio=${inicio}&fin=${fin}&token=${token}`;
+    // 🔥 FIX: Ruta correcta y apuntando directamente al puerto 8080 de Java
+    let url = `http://localhost:8080/api/reportes/excel?inicio=${inicio}&fin=${fin}&token=${token}`;
     if (sedeSeleccionadaId) url += `&sedeId=${sedeSeleccionadaId}`;
     window.open(url, '_blank');
   };

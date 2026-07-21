@@ -7,7 +7,13 @@ import type { Producto } from '@/types';
 import type { Insumo } from '@/api/inventario';
 import { useAuthStore } from '@/store/authStore';
 
-interface RecetaLocal { insumoId: number; cantidadUsada: number; insumoNombre?: string; unidad?: string; costo?: number; }
+interface RecetaLocal { 
+  insumoId: number; 
+  cantidadUsada: number; 
+  insumoNombre?: string; 
+  unidad?: string; 
+  costo?: number; 
+}
 
 export default function RecetasPage() {
   const [productos, setProductos] = useState<Producto[]>([]);
@@ -19,13 +25,12 @@ export default function RecetasPage() {
 
   const showToast = (message: string, type: 'success' | 'error' = 'success') => {
     setToast({ visible: true, type, message });
-    setTimeout(() => setToast(prev => ({ ...prev, visible: false })), 5000); // 5 segundos para poder leer el error
+    setTimeout(() => setToast(prev => ({ ...prev, visible: false })), 5000);
   };
 
   const { sedeSeleccionadaId } = useAuthStore();
 
   useEffect(() => {
-    // Inyectamos la sede para que el backend nos devuelva los costos exactos
     Promise.all([getProductosAdmin(), getInsumos(sedeSeleccionadaId || undefined)]).then(([p, i]) => {
       setProductos(p.filter(x => x.estadoRegistro));
       setInsumos(i.filter(x => x.estadoRegistro));
@@ -37,21 +42,29 @@ export default function RecetasPage() {
     setLoading(true);
     try {
       const data = await getRecetaProducto(prod.id);
+      
       const mapeada = data.map((d: any) => {
-        const ins = insumos.find(i => i.id === d.insumoId);
+        const idInsumoReal = d.insumo?.id || d.insumoId;
+        const cantidadReal = d.cantidadRequerida || d.cantidadUsada || 0;
+
+        const ins = insumos.find(i => i.id === idInsumoReal);
+        
+        // 🔥 CORRECCIÓN: Leemos el costo verificando los dos posibles nombres que envía Java
+        const costoReal = Number((ins as any)?.costo) || Number(ins?.costoUnitario) || 0;
+        
         return { 
-          insumoId: d.insumoId, 
-          cantidadUsada: d.cantidadUsada, 
-          insumoNombre: ins?.nombre, 
-          unidad: ins?.unidadMedida, 
-          costo: ins?.costoUnitario || 0 
-        };
+           insumoId: idInsumoReal, 
+           cantidadUsada: cantidadReal, 
+           insumoNombre: ins?.nombre || d.insumo?.nombre || 'Desconocido', 
+           unidad: ins?.unidadMedida || d.unidadMedida || '-', 
+           costo: costoReal 
+         };
       });
+      
       setReceta(mapeada);
     } catch (e: any) {
-      // 🚨 ATRAPAMOS EL ERROR REAL DE LA BASE DE DATOS
-      const errorReal = e.response?.data?.causa || e.response?.data?.error || 'Error al cargar receta';
-      showToast(`Fallo SQL: ${errorReal}`, 'error');
+      const errorReal = e.response?.data?.causa || e.response?.data?.error || e.response?.data?.message || 'Error al cargar receta';
+      showToast(`Fallo Servidor: ${errorReal}`, 'error');
       setReceta([]);
     } finally { 
       setLoading(false); 
@@ -61,8 +74,19 @@ export default function RecetasPage() {
   const agregarInsumo = (insumoId: number) => {
     if (!insumoId) return;
     if (receta.find(r => r.insumoId === insumoId)) return showToast('Este insumo ya está en la receta', 'error');
+    
     const ins = insumos.find(i => i.id === insumoId);
-    setReceta([...receta, { insumoId, cantidadUsada: 0, insumoNombre: ins?.nombre, unidad: ins?.unidadMedida, costo: ins?.costoUnitario || 0 }]);
+    
+    // 🔥 CORRECCIÓN: Leemos el costo correctamente al añadir un insumo nuevo a la lista
+    const costoReal = Number((ins as any)?.costo) || Number(ins?.costoUnitario) || 0;
+    
+    setReceta([...receta, { 
+      insumoId, 
+      cantidadUsada: 0, 
+      insumoNombre: ins?.nombre, 
+      unidad: ins?.unidadMedida, 
+      costo: costoReal 
+    }]);
   };
 
   const quitarInsumo = (insumoId: number) => setReceta(receta.filter(r => r.insumoId !== insumoId));
@@ -79,7 +103,6 @@ export default function RecetasPage() {
       await guardarReceta(productoSel.id, receta.map(r => ({ insumoId: r.insumoId, cantidadUsada: r.cantidadUsada })));
       showToast('Receta guardada exitosamente. Se descontará inventario al vender.');
     } catch (e: any) { 
-      // 🚨 ATRAPAMOS EL ERROR REAL DE LA BASE DE DATOS AL GUARDAR
       const errorReal = e.response?.data?.causa || e.response?.data?.error || 'Error al guardar la receta';
       showToast(`Fallo SQL: ${errorReal}`, 'error'); 
     } finally { 
@@ -95,7 +118,7 @@ export default function RecetasPage() {
         
         <div className="bg-[#0a0f1c] rounded-[2.5rem] p-8 md:p-10 shadow-2xl border border-gray-800 flex justify-between items-center relative overflow-hidden">
           <div className="absolute top-0 right-0 w-[400px] h-[400px] bg-gradient-to-bl from-orange-500/20 to-transparent rounded-full blur-[80px] -translate-y-1/2 translate-x-1/4 pointer-events-none"></div>
-<div className="relative z-10">
+          <div className="relative z-10">
             <h1 className="text-3xl md:text-4xl font-black text-white tracking-tight">
               Explosión de <span className="text-transparent bg-clip-text bg-gradient-to-r from-orange-400 to-amber-300">Recetas</span>
             </h1>

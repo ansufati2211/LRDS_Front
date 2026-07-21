@@ -110,8 +110,10 @@ export default function InventarioPage() {
       await eliminarInsumo(id); 
       sileo.success({ title: 'Insumo enviado a inhabilitados' });
       cargarDatos(); 
-    } catch (e) { 
-      sileo.error({ title: 'Error al inhabilitar el insumo' }); 
+    } catch (e: any) { 
+      // 🔥 FIX: Mostrar el error real de la Base de Datos
+      const errorReal = e.response?.data?.message || e.response?.data?.error || 'Error al inhabilitar';
+      sileo.error({ title: 'Fallo Servidor', description: errorReal }); 
     }
   };
 
@@ -121,8 +123,10 @@ export default function InventarioPage() {
       await activarInsumo(id); 
       sileo.success({ title: 'Insumo restaurado correctamente' });
       cargarDatos(); 
-    } catch (e) { 
-      sileo.error({ title: 'Error al restaurar el insumo' }); 
+    } catch (e: any) { 
+      // 🔥 FIX: Mostrar el error real de la Base de Datos
+      const errorReal = e.response?.data?.message || e.response?.data?.error || 'Error al restaurar';
+      sileo.error({ title: 'Fallo Servidor', description: errorReal }); 
     }
   };
 
@@ -259,7 +263,6 @@ export default function InventarioPage() {
                             </span>
                           )}
                         </td>
-
                         {/* 🔥 MODO LECTURA: Oculta acciones de insumo al gerente */}
                         {isAdmin && (
                           <td className="px-8 py-5 text-right">

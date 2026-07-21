@@ -25,8 +25,16 @@ export const abrirCaja = (montoInicial: number) =>
 export const cerrarCaja = (id: number, montoFinalDeclarado: number) =>
   api.put<SesionCaja>(`/caja/cerrar/${id}`, { montoFinalDeclarado }).then((r) => r.data);
 
-export const getCajaActiva = () =>
-  api.get<SesionCaja>('/caja/activa').then((r) => r.data);
+export const getCajaActiva = async (): Promise<SesionCaja | null> => {
+  try {
+    const response = await api.get<SesionCaja>('/caja/activa');
+    return response.data;
+  } catch (error: any) {
+    // 🔥 Capturamos el 404 pacíficamente para que la app entienda que simplemente "no hay caja"
+    if (error.response?.status === 404) return null;
+    throw error;
+  }
+};
 
 export const procesarPago = (pedidoId: number, sesionCajaId: number, pagos: PagoItem[]) =>
   api.post<string>(`/pedidos/${pedidoId}/pagar`, { sesionCajaId, pagos }).then((r) => r.data);

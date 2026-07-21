@@ -221,7 +221,10 @@ export default function AdminProductosPage() {
       await eliminarCategoria(id); 
       sileo.success({ title: 'Categoría ocultada' });
       cargarDatos(); 
-    } catch (e) { sileo.error({ title: 'No se pudo desactivar la categoría' }); }
+    } catch (e: any) { 
+      const errorReal = e.response?.data?.message || e.response?.data?.error || 'No se pudo desactivar';
+      sileo.error({ title: 'Fallo Servidor', description: errorReal }); 
+    }
   };
 
   const handleActivarCategoria = async (id: number) => {
@@ -230,7 +233,10 @@ export default function AdminProductosPage() {
       await activarCategoria(id); 
       sileo.success({ title: 'Categoría restaurada' });
       cargarDatos(); 
-    } catch (e) { sileo.error({ title: 'No se pudo restaurar la categoría' }); }
+    } catch (e: any) { 
+      const errorReal = e.response?.data?.message || e.response?.data?.error || 'No se pudo restaurar';
+      sileo.error({ title: 'Fallo Servidor', description: errorReal }); 
+    }
   };
 
   const handleEliminarProducto = async (id: number) => {
@@ -239,7 +245,10 @@ export default function AdminProductosPage() {
       await eliminarProducto(id); 
       sileo.success({ title: 'Producto ocultado' });
       cargarDatos(); 
-    } catch (e) { sileo.error({ title: 'No se pudo desactivar el producto' }); }
+    } catch (e: any) { 
+      const errorReal = e.response?.data?.message || e.response?.data?.error || 'No se pudo desactivar';
+      sileo.error({ title: 'Fallo Servidor', description: errorReal }); 
+    }
   };
 
   const handleActivarProducto = async (id: number) => {
@@ -248,7 +257,10 @@ export default function AdminProductosPage() {
       await activarProducto(id); 
       sileo.success({ title: 'Producto restaurado' });
       cargarDatos(); 
-    } catch (e) { sileo.error({ title: 'No se pudo restaurar el producto' }); }
+    } catch (e: any) { 
+      const errorReal = e.response?.data?.message || e.response?.data?.error || 'No se pudo restaurar';
+      sileo.error({ title: 'Fallo Servidor', description: errorReal }); 
+    }
   };
 
   const productosFiltrados = productos.filter(p => p.nombre.toLowerCase().includes(busqueda.toLowerCase()));

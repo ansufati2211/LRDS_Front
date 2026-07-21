@@ -48,9 +48,10 @@ export default function ReportesPage() {
     cargarDatos();
   }, [cargarDatos]);
 
-  const descargarExcelVentas = () => {
+const descargarExcelVentas = () => {
     const token = useAuthStore.getState().token;
-    let url = `/api/v1/reportes/ventas/exportar-excel?inicio=${inicio}&fin=${fin}&token=${token}`;
+    // 🔥 FIX: Misma corrección, ruta exacta del backend
+    let url = `http://localhost:8080/api/reportes/excel?inicio=${inicio}&fin=${fin}&token=${token}`;
     if (sedeSeleccionadaId) url += `&sedeId=${sedeSeleccionadaId}`;
     window.open(url, '_blank');
   };
