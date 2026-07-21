@@ -6,5 +6,5 @@ export interface Empresa {
   ruc: string;
   direccion: string;
 }
-
-export const getMiEmpresa = () => api.get<Empresa>('/empresas/mi-empresa').then(r => r.data).catch(() => null); 
+// FIX: Inyectamos /v1 porque EmpresaController lo usa
+export const getMiEmpresa = () => api.get<Empresa>('/v1/empresas/mi-empresa').then(r => r.data).catch(() => null);

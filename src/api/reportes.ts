@@ -5,13 +5,11 @@ export interface DetalleDia {
   ingresos: number;
   pedidos: number;
 }
-
 export interface DashboardVentas {
   ingresosTotalesMensuales: number;
   pedidosTotalesMensuales: number;
   detalleDiario: DetalleDia[];
 }
-
 export interface InsumoAlerta {
   insumoId: number;
   nombre: string;
@@ -21,12 +19,12 @@ export interface InsumoAlerta {
   sedeId: number;
 }
 
-// FIX: Ruta corregida de '/reportes/dashboard' a '/reportes/ventas/dashboard'
+// FIX: Rutas ajustadas al ReporteController y InventarioController
 export const getDashboard = (inicio: string, fin: string, sedeId?: number) =>
-  api.get<DashboardVentas>('/reportes/ventas/dashboard', { params: { inicio, fin, sedeId } }).then((r) => r.data);
+  api.get<DashboardVentas>('/reportes/dashboard', { params: { inicio, fin, sedeId } }).then((r) => r.data);
 
 export const getAlertasStock = (sedeId?: number) =>
-  api.get<InsumoAlerta[]>('/inventario/insumos/stock-bajo', { params: { sedeId } }).then((r) => r.data);
+  api.get<InsumoAlerta[]>('/inventario/alertas', { params: { sedeId } }).then((r) => r.data);
 
 export interface MargenProductoDTO {
   productoId: number;
@@ -37,7 +35,6 @@ export interface MargenProductoDTO {
   margenPct: number;
   esEstimado: boolean;
 }
-
 export interface MargenCategoriaDTO {
   categoriaId: number;
   categoria: string;
@@ -46,7 +43,6 @@ export interface MargenCategoriaDTO {
   utilidadBruta: number;
   margenPct: number;
 }
-
 export interface MargenVentasDTO {
   ingresosTotales: number;
   costoVentas: number;
@@ -58,4 +54,4 @@ export interface MargenVentasDTO {
 }
 
 export const getMargenVentas = (inicio: string, fin: string, sedeId?: number) => 
-  api.get<MargenVentasDTO>('/reportes/ventas/margen', { params: { inicio, fin, sedeId } }).then(r => r.data);
+   api.get<MargenVentasDTO>('/reportes/margen', { params: { inicio, fin, sedeId } }).then(r => r.data);
