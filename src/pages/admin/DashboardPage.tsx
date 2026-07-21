@@ -173,7 +173,7 @@ const descargarExcel = () => {
              <ArrowRight className="group-hover:translate-x-1 transition-transform" />
           </button>
           
-          <button onClick={() => navigate('/kds')} className="bg-gradient-to-br from-orange-500 to-amber-500 p-6 rounded-[2rem] text-white flex items-center justify-between shadow-lg shadow-orange-500/20 hover:scale-[1.03] transition-transform group text-left">
+          <button onClick={() => navigate('/cocina')} className="bg-gradient-to-br from-orange-500 to-amber-500 p-6 rounded-[2rem] text-white flex items-center justify-between shadow-lg shadow-orange-500/20 hover:scale-[1.03] transition-transform group text-left">
              <div className="flex items-center gap-4">
                <div className="bg-white/20 p-3 rounded-2xl group-hover:bg-white/30 transition-colors"><ChefHat size={26} strokeWidth={2.5} /></div>
                <div><p className="font-black text-xl tracking-tight">Cocina (KDS)</p><p className="text-xs font-bold text-orange-100 uppercase tracking-widest mt-0.5">Pantalla de Chef</p></div>
