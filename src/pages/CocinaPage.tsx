@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useCallback, useMemo } from 'react';
+import { useEffect, useState, useCallback, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { 
   ChefHat, LogOut, CheckCircle, AlertTriangle, 
@@ -363,10 +363,10 @@ export default function CocinaPage() {
     return () => clearInterval(interval);
   }, []);
 
-  // 🔥 SOLUCIÓN DEL EVENT SOURCE: Manejo de errores silencioso con reconexión suave (Evita el 403 Spam)
+// FIX APLICADO: URL corregida para eventos SSE
   const conectarSSE = useCallback(() => {
     const token = useAuthStore.getState().token;
-    const es = new EventSource(`http://localhost:8080/api/v1/kds/eventos?token=${token}`);
+    const es = new EventSource(`http://localhost:8080/api/kds/eventos?token=${token}`);
     
     es.addEventListener('NUEVO_PEDIDO', () => cargarDatos());
     es.addEventListener('NUEVA_COMANDA', () => cargarDatos());
@@ -374,12 +374,10 @@ export default function CocinaPage() {
     
     es.onerror = () => {
       es.close();
-      setTimeout(conectarSSE, 5000); // Intenta reconectar silenciosamente en 5 segundos
+      setTimeout(conectarSSE, 5000); // Reconexión suave
     };
-
     return es;
   }, [cargarDatos]);
-
   useEffect(() => {
     const es = conectarSSE();
     return () => es.close();

@@ -3,20 +3,17 @@ import { useNavigate } from 'react-router-dom';
 import { 
   Plus, Minus, Send, LogOut, Clock, CheckCircle, ChefHat, 
   Truck, X, Bell, Search, UtensilsCrossed, Loader2, ArrowLeft, 
-  Trash2, ShieldAlert, Moon, Sun 
+  Trash2, ShieldAlert, Moon, Sun
 } from 'lucide-react';
 import { 
   getProductos, getCategorias, getPedidosActivos, crearPedido, 
   confirmarPedido, entregarPedido, agregarItems, cancelarItem, cancelarPedido 
 } from '@/api/pedidos';
 import { useAuthStore } from '@/store/authStore';
-import type { Producto, Categoria, PedidoActivo, ItemPedidoLocal, EstadoPedido, EstadoItem } from '@/types';
+import type { Producto, Categoria, PedidoActivo, ItemPedidoLocal, EstadoPedido, EstadoItem, TipoConsumo } from '@/types';
 import { formatearHoraPeru } from '@/lib/datetimePeru';
 import { sileo } from 'sileo';
 
-// ============================================================================
-// 1. CONFIGURACIÓN DEL MODO CLARO / OSCURO
-// ============================================================================
 const THEMES = {
   light: {
     appBg: 'bg-gray-50', panelBg: 'bg-white', cardBg: 'bg-white', itemBg: 'bg-gray-50', 
@@ -33,10 +30,8 @@ const THEMES = {
     inputBg: 'bg-[#0f172a] focus:bg-[#334155] text-white', ring: 'focus:ring-white', iconBadge: 'bg-white text-black'
   }
 };
-
 type ThemeKey = 'light' | 'dark';
 type PasoFlujo = 'MESA' | 'MENU' | 'CARRITO';
-type TipoConsumo = 'MESA' | 'PARA_LLEVAR' | 'DELIVERY';
 
 const ESTADO_CONFIG: Record<EstadoPedido, { label: string; color: string; icon: React.ReactNode }> = {
   BORRADOR: { label: 'Borrador', color: 'bg-gray-200 text-gray-800 border-gray-300', icon: <Clock size={14} /> },
@@ -50,23 +45,10 @@ const ESTADO_CONFIG: Record<EstadoPedido, { label: string; color: string; icon: 
 
 const puedeCancelarEntregado = (rol?: string) => rol === 'ROLE_GERENTE_SEDE' || rol === 'ROLE_SUPER_ADMIN' || rol === 'ROLE_ADMIN_EMPRESA';
 
-interface NotificacionListo {
-  pedidoId: number;
-  numeroOrden: number;
-  mesa: string;
-  tipoConsumo: string;
-  timestamp: Date;
-  entregado: boolean;
-}
-
-// ============================================================================
-// 2. COMPONENTES MODALES
-// ============================================================================
 function ModalConfirmacion({ isOpen, title, message, type, requireInput, inputPlaceholder, onConfirm, onCancel, loading }: any) {
   const [val, setVal] = useState('');
   useEffect(() => { if (isOpen) setVal(''); }, [isOpen]);
   if (!isOpen) return null;
-
   return (
     <div className="fixed inset-0 bg-black/80 backdrop-blur-sm flex items-center justify-center z-[70] p-4 animate-in fade-in duration-200">
       <div className="bg-white rounded-[2rem] shadow-2xl w-full max-w-sm overflow-hidden animate-in zoom-in-95 duration-200">
@@ -283,12 +265,8 @@ function ModalAgregarItems({ theme, pedido, productos, categorias, onClose, onAg
   );
 }
 
-// ============================================================================
-// 3. COMPONENTES PRINCIPALES (BARRA, PANEL IZQUIERDO Y DERECHO)
-// ============================================================================
 function HeaderMozo({ user, theme, changeTheme, vistaMovil, setVistaMovil, notificaciones, setModalAbierto, handleLogout }: any) {
   const count = notificaciones.filter((n: any) => !n.entregado).length;
-
   return (
     <header className="bg-black border-b border-gray-800 px-6 py-4 flex items-center justify-between z-30 shrink-0">
       <div className="flex items-center gap-3">
@@ -305,15 +283,13 @@ function HeaderMozo({ user, theme, changeTheme, vistaMovil, setVistaMovil, notif
       </div>
 
       <div className="flex items-center gap-4">
-        <button onClick={() => changeTheme(theme === 'light' ? 'dark' : 'light')} className="p-2.5 rounded-xl bg-gray-900 text-gray-400 hover:text-white hover:bg-gray-800 transition-colors" title={theme === 'light' ? "Cambiar a Modo Oscuro" : "Cambiar a Modo Claro"}>
+        <button onClick={() => changeTheme(theme === 'light' ? 'dark' : 'light')} className="p-2.5 rounded-xl bg-gray-900 text-gray-400 hover:text-white hover:bg-gray-800 transition-colors">
           {theme === 'light' ? <Moon size={18} /> : <Sun size={18} />}
         </button>
-
-        <button onClick={() => setModalAbierto(true)} className="relative p-2.5 rounded-xl bg-gray-900 text-gray-400 hover:text-white hover:bg-gray-800 transition-colors" title="Ver Notificaciones">
+        <button onClick={() => setModalAbierto(true)} className="relative p-2.5 rounded-xl bg-gray-900 text-gray-400 hover:text-white hover:bg-gray-800 transition-colors">
           <Bell size={18} />
           {count > 0 && <span className="absolute -top-1.5 -right-1.5 bg-red-500 text-white text-[10px] font-black w-5 h-5 flex items-center justify-center rounded-full border-2 border-black animate-pulse">{count}</span>}
         </button>
-
         <div className="hidden sm:block h-8 w-px bg-gray-800 mx-1"></div>
         <button onClick={handleLogout} className="flex items-center gap-2 p-2.5 text-sm font-bold text-gray-400 hover:text-white hover:bg-red-500/20 rounded-xl transition-all">
           <LogOut size={18} /> <span className="hidden sm:inline">Cerrar</span>
@@ -351,7 +327,7 @@ function PanelNuevaOrden({ theme, vistaMovil, paso, setPaso, tipoConsumo, setTip
   };
 
   const total = carrito.reduce((s: number, i: any) => s + i.precio * i.cantidad, 0);
-  
+
   const filtrados = productos.filter((p: any) => {
     const prodCatId = p.categoria?.id || p.categoriaId;
     const matchCat = catFiltro === 'TODAS' ? true : prodCatId === catFiltro;
@@ -461,6 +437,7 @@ function PanelNuevaOrden({ theme, vistaMovil, paso, setPaso, tipoConsumo, setTip
             <button onClick={() => setPaso('MENU')} className={`${c.secondaryBtn} p-2 rounded-xl`}><ArrowLeft size={18}/></button>
             <h2 className={`font-black text-lg ${c.textMain}`}>Comanda {mesa}</h2>
           </div>
+          
           <div className={`flex-1 overflow-y-auto p-6 space-y-3 ${c.appBg} custom-scrollbar`}>
             {carrito.map((i: any) => (
               <div key={i.productoId} className={`${c.itemBg} p-4 rounded-xl border ${c.border} flex items-center gap-4`}>
@@ -476,6 +453,7 @@ function PanelNuevaOrden({ theme, vistaMovil, paso, setPaso, tipoConsumo, setTip
               </div>
             ))}
           </div>
+
           <div className={`p-6 border-t ${c.border}`}>
             <p className={`flex justify-between font-black text-2xl mb-4 ${c.textMain}`}><span>Total:</span><span>S/ {total.toFixed(2)}</span></p>
             <input 
@@ -496,7 +474,7 @@ function PanelNuevaOrden({ theme, vistaMovil, paso, setPaso, tipoConsumo, setTip
 
 function PanelMonitoreo({ theme, vistaMovil, pedidos, cargarPedidos, handleConfirmar, handleEntregar, handleCancelarPedido, handleCancelarItem, setPedidoAgregando, user }: any) {
   const c = THEMES[theme as ThemeKey];
-
+  
   return (
     <div className={`flex-1 ${c.appBg} flex-col overflow-hidden transition-colors ${vistaMovil === 'MESAS' ? 'flex' : 'hidden md:flex'}`}>
       <div className={`p-7.5 border-b ${c.border} flex justify-between items-center shrink-0`}>
@@ -524,13 +502,12 @@ function PanelMonitoreo({ theme, vistaMovil, pedidos, cargarPedidos, handleConfi
                     </div>
                     <div className="flex items-center gap-3">
                       <span className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-[10px] font-black uppercase border ${est.color}`}>{est.icon} {est.label}</span>
-                      {/* 🔥 AQUI PROTEGEMOS LA MESA: Ocultamos el tachito si ya se entregó */}
                       {pedido.estadoActual !== 'CANCELADO' && pedido.estadoActual !== 'PAGADO' && pedido.estadoActual !== 'ENTREGADO' && (
                         <button onClick={() => handleCancelarPedido(pedido.id)} className={`${c.textMuted} hover:text-red-500`}><Trash2 size={16} /></button>
                       )}
                     </div>
                   </div>
-
+                  
                   <div className="flex-1 p-6 space-y-4 max-h-60 overflow-y-auto custom-scrollbar">
                     {pedido.items.map((item: any) => {
                       const puedeCancelar = item.estadoItem !== 'CANCELADO' && pedido.estadoActual !== 'CANCELADO' && (item.estadoItem !== 'ENTREGADO' || puedeCancelarEntregado(user?.rol));
@@ -540,7 +517,7 @@ function PanelMonitoreo({ theme, vistaMovil, pedidos, cargarPedidos, handleConfi
                             <span className={`${c.appBg} ${c.textMain} w-7 h-7 rounded-lg flex items-center justify-center text-xs font-black`}>{item.cantidad}x</span>
                             <div>
                               <p className={`text-sm font-bold ${item.estadoItem === 'CANCELADO' ? 'line-through' : ''} ${c.textMain}`}>{item.nombreProducto}</p>
-                              {item.notasPreparacion && <p className={`text-[10px] font-bold uppercase mt-1 ${c.textMuted}`}>↳ {item.notasPreparacion}</p>}
+                              {item.notasPreparacion && <p className={`text-[10px] font-bold uppercase mt-1 ${c.textMuted}`}>📝 {item.notasPreparacion}</p>}
                             </div>
                           </div>
                           <div className="flex gap-3 items-center">
@@ -557,9 +534,11 @@ function PanelMonitoreo({ theme, vistaMovil, pedidos, cargarPedidos, handleConfi
                       <span className={`text-[10px] font-black uppercase ${c.textMuted}`}>Total</span>
                       <span className={`text-xl font-black ${c.textMain}`}>S/ {pedido.total.toFixed(2)}</span>
                     </div>
+                    
                     {pedido.estadoActual === 'BORRADOR' && <button onClick={() => handleConfirmar(pedido.id)} className={`w-full ${c.primaryBtn} py-3 rounded-xl font-black text-sm flex justify-center gap-2`}><ChefHat size={18}/> A Cocina</button>}
                     {pedido.estadoActual === 'LISTO' && <button onClick={() => handleEntregar(pedido.id)} className="w-full bg-emerald-500 hover:bg-emerald-600 text-white py-3 rounded-xl font-black text-sm flex justify-center gap-2"><CheckCircle size={18}/> Entregar</button>}
                     {(pedido.estadoActual === 'RECIBIDO' || pedido.estadoActual === 'EN_PREPARACION') && <div className={`w-full ${c.cardBg} border ${c.border} py-3 rounded-xl text-xs font-bold uppercase flex justify-center gap-2 ${c.textMuted}`}><Loader2 size={16} className="animate-spin"/> Cocinando</div>}
+                    
                     {pedido.estadoActual !== 'BORRADOR' && pedido.estadoActual !== 'CANCELADO' && pedido.estadoActual !== 'PAGADO' && (
                       <button onClick={() => setPedidoAgregando(pedido)} className={`w-full mt-2 ${c.secondaryBtn} border ${c.border} py-2.5 rounded-xl font-bold text-xs flex justify-center gap-2`}><Plus size={14}/> Adicionar</button>
                     )}
@@ -574,13 +553,9 @@ function PanelMonitoreo({ theme, vistaMovil, pedidos, cargarPedidos, handleConfi
   );
 }
 
-// ============================================================================
-// COMPONENTE CONTENEDOR PRINCIPAL: MOZO PAGE
-// ============================================================================
 export default function MozoPage() {
   const navigate = useNavigate();
   const { user, logout } = useAuthStore();
-  
   const [theme, setTheme] = useState<ThemeKey>(() => (localStorage.getItem('pos_theme_bw') as ThemeKey) || 'light');
   const changeTheme = (newTheme: ThemeKey) => { setTheme(newTheme); localStorage.setItem('pos_theme_bw', newTheme); };
   const c = THEMES[theme];
@@ -588,6 +563,7 @@ export default function MozoPage() {
   const [productos, setProductos] = useState<Producto[]>([]);
   const [categorias, setCategorias] = useState<Categoria[]>([]);
   const [vistaMovil, setVistaMovil] = useState<'NUEVA_ORDEN' | 'MESAS'>('NUEVA_ORDEN'); 
+
   const [paso, setPaso] = useState<PasoFlujo>('MESA');
   const [tipoConsumo, setTipoConsumo] = useState<TipoConsumo>('MESA');
   const [mesa, setMesa] = useState('');
@@ -595,76 +571,76 @@ export default function MozoPage() {
   const [carrito, setCarrito] = useState<ItemPedidoLocal[]>([]);
   const [notasGenerales, setNotasGenerales] = useState('');
   const [enviando, setEnviando] = useState(false);
+
   const [pedidos, setPedidos] = useState<PedidoActivo[]>([]);
   const [pedidoAgregando, setPedidoAgregando] = useState<PedidoActivo | null>(null);
 
-  const [confirmDialog, setConfirmDialog] = useState<{ isOpen: boolean; title: string; message: string; type: 'danger' | 'warning'; requireInput: boolean; inputPlaceholder?: string; isProcessing: boolean; onConfirm: (val?: string) => void; }>({ isOpen: false, title: '', message: '', type: 'warning', requireInput: false, isProcessing: false, onConfirm: () => {} });
-
-  const [notificaciones, setNotificaciones] = useState<NotificacionListo[]>([]);
+  const [confirmDialog, setConfirmDialog] = useState<any>({ isOpen: false });
+  const [notificaciones, setNotificaciones] = useState<any[]>([]);
   const [modalAbierto, setModalAbierto] = useState(false);
 
-  // 🔔 SONIDO DE CAMPANITA AL RECIBIR PLATOS LISTOS
   const reproducirSonido = useCallback(() => {
     try {
       const audio = new Audio('https://assets.mixkit.co/active_storage/sfx/2869/2869-preview.mp3');
       audio.volume = 0.8;
       const playPromise = audio.play();
       if (playPromise !== undefined) {
-        playPromise.catch(() => { /* Auto-play bloqueado, normal hasta hacer click */ });
+        playPromise.catch(() => {});
       }
     } catch (e) {}
   }, []);
 
   const cargarPedidos = useCallback(async () => {
-    try { 
-      const data = await getPedidosActivos(); 
-      setPedidos(data); 
-
-      // 🔥 FALLBACK: Si falla el socket, verificamos si hay pedidos listos no notificados
-      setNotificaciones(prev => {
-        let nuevas = [...prev];
-        let hayNuevas = false;
-        data.forEach(p => {
-          if (p.estadoActual === 'LISTO' && !nuevas.some(n => n.pedidoId === p.id)) {
-            hayNuevas = true;
-            nuevas.unshift({
-              pedidoId: p.id,
-              numeroOrden: p.id, // Fallback si falta
-              mesa: p.mesa || p.tipoConsumo,
-              tipoConsumo: p.tipoConsumo,
-              timestamp: new Date(),
-              entregado: false
-            });
-          }
-        });
-        if (hayNuevas) reproducirSonido();
-        return nuevas;
-      });
-
+    try {
+       const data = await getPedidosActivos();
+       setPedidos(data);
+       setNotificaciones(prev => {
+         let nuevas = [...prev];
+         let hayNuevas = false;
+         data.forEach(p => {
+           if (p.estadoActual === 'LISTO' && !nuevas.some(n => n.pedidoId === p.id)) {
+             hayNuevas = true;
+             nuevas.unshift({
+               pedidoId: p.id,
+               numeroOrden: p.id,
+               mesa: p.mesa || p.tipoConsumo,
+               tipoConsumo: p.tipoConsumo,
+               timestamp: new Date(),
+               entregado: false
+             });
+           }
+         });
+         if (hayNuevas) reproducirSonido();
+         return nuevas;
+       });
     } catch (error) { console.error("Error cargando pedidos:", error); }
   }, [reproducirSonido]);
 
   useEffect(() => {
     Promise.all([getProductos(), getCategorias()]).then(([prods, cats]) => {
-      setProductos(prods.filter(p => p.estadoRegistro)); setCategorias(cats.filter(c => c.estadoRegistro));
+      setProductos(prods.filter(p => p.estadoRegistro)); 
+      setCategorias(cats.filter(c => c.estadoRegistro));
     });
     cargarPedidos();
   }, [cargarPedidos]);
 
   useEffect(() => {
     const token = useAuthStore.getState().token;
-    const es = new EventSource(`http://localhost:8080/api/v1/kds/eventos?token=${token}`);
+    const es = new EventSource(`http://localhost:8080/api/kds/eventos?token=${token}`);
+    
     const agg = (data: any) => {
       setNotificaciones(prev => {
         if (prev.some(n => n.pedidoId === data.pedidoId)) return prev;
-        reproducirSonido(); // 🔥 SUENA LA CAMPANA
+        reproducirSonido();
         return [{ ...data, timestamp: new Date(), entregado: false }, ...prev];
       });
       cargarPedidos();
     };
+
     es.addEventListener('PEDIDO_LISTO', e => agg(JSON.parse(e.data)));
     es.addEventListener('AVISO_PEDIDO_LISTO', e => agg(JSON.parse(e.data)));
     es.addEventListener('EN_PREPARACION', () => cargarPedidos());
+
     return () => es.close();
   }, [cargarPedidos, reproducirSonido]);
 
@@ -683,16 +659,13 @@ export default function MozoPage() {
     catch (err: any) { sileo.error({ title: 'Error', description: err.response?.data?.message || err.message }); }
   };
 
-  // 🔥 Aquí se captura el error 400 detallado
   const handleEntregar = async (id: number) => {
     try { 
-      await entregarPedido(id); 
-      setNotificaciones(p => p.map(n => n.pedidoId === id ? { ...n, entregado: true } : n)); 
-      await cargarPedidos(); 
-    } catch(err: any) { 
-      const mensajeBackend = err.response?.data?.message || err.response?.data?.detalles || err.message;
-      sileo.error({ title: 'No se puede entregar', description: mensajeBackend }); 
-      console.error("🔥 ERROR ENTREGAR:", err.response?.data || err);
+       await entregarPedido(id);
+       setNotificaciones(p => p.map(n => n.pedidoId === id ? { ...n, entregado: true } : n));
+       await cargarPedidos(); 
+     } catch(err: any) { 
+       sileo.error({ title: 'No se puede entregar', description: err.response?.data?.message || err.message }); 
     }
   };
 
@@ -702,10 +675,10 @@ export default function MozoPage() {
       isOpen: true, title: '¿Cancelar plato?', message: req ? 'Motivo (Merma/Error):' : 'Se retirará de la cuenta.', type: 'warning', requireInput: req, isProcessing: false,
       onConfirm: async (m?: string) => {
         if (req && (!m || !m.trim())) return sileo.error({ title: 'Motivo obligatorio' });
-        setConfirmDialog(p => ({ ...p, isProcessing: true }));
+        setConfirmDialog((p: any) => ({ ...p, isProcessing: true }));
         try { await cancelarItem(pId, dId, m); sileo.success({ title: 'Cancelado' }); await cargarPedidos(); } 
         catch (err: any) { sileo.error({ title: 'Error', description: err.message }); } 
-        finally { setConfirmDialog(p => ({ ...p, isOpen: false })); }
+        finally { setConfirmDialog((p: any) => ({ ...p, isOpen: false })); }
       }
     });
   };
@@ -714,24 +687,25 @@ export default function MozoPage() {
     setConfirmDialog({
       isOpen: true, title: '¿Anular orden?', message: 'Se cancelará todo.', type: 'danger', requireInput: false, isProcessing: false,
       onConfirm: async () => {
-        setConfirmDialog(p => ({ ...p, isProcessing: true }));
+        setConfirmDialog((p: any) => ({ ...p, isProcessing: true }));
         try { await cancelarPedido(pId); sileo.success({ title: 'Anulada' }); await cargarPedidos(); } 
         catch (err: any) { sileo.error({ title: 'Error', description: err.message }); } 
-        finally { setConfirmDialog(p => ({ ...p, isOpen: false })); }
+        finally { setConfirmDialog((p: any) => ({ ...p, isOpen: false })); }
       }
     });
   };
 
   return (
-    <div className={`h-screen flex flex-col font-sans overflow-hidden transition-colors duration-300 ${c.appBg}`}>
+    <div className={`h-screen flex flex-col font-sans overflow-hidden transition-colors duration-300 ${c.appBg} relative`}>
       <HeaderMozo user={user} theme={theme} changeTheme={changeTheme} vistaMovil={vistaMovil} setVistaMovil={setVistaMovil} notificaciones={notificaciones} setModalAbierto={setModalAbierto} handleLogout={() => { logout(); navigate('/login'); }} />
       <div className="flex flex-1 overflow-hidden relative min-h-0">
         <PanelNuevaOrden theme={theme} vistaMovil={vistaMovil} paso={paso} setPaso={setPaso} tipoConsumo={tipoConsumo} setTipoConsumo={setTipoConsumo} mesa={mesa} setMesa={setMesa} modoMesaCustom={modoMesaCustom} setModoMesaCustom={setModoMesaCustom} carrito={carrito} setCarrito={setCarrito} notasGenerales={notasGenerales} setNotasGenerales={setNotasGenerales} enviando={enviando} enviarPedido={enviarPedido} productos={productos} categorias={categorias} pedidos={pedidos} />
         <PanelMonitoreo theme={theme} vistaMovil={vistaMovil} pedidos={pedidos} cargarPedidos={cargarPedidos} handleConfirmar={handleConfirmar} handleEntregar={handleEntregar} handleCancelarPedido={handleCancelarPedido} handleCancelarItem={handleCancelarItem} setPedidoAgregando={setPedidoAgregando} user={user} />
       </div>
+
       {modalAbierto && <NotificacionModal notificaciones={notificaciones} onEntregar={handleEntregar} onClose={() => setModalAbierto(false)} />}
       {pedidoAgregando && <ModalAgregarItems theme={theme} pedido={pedidoAgregando} productos={productos} categorias={categorias} onClose={() => setPedidoAgregando(null)} onAgregado={cargarPedidos} />}
-      <ModalConfirmacion {...confirmDialog} onCancel={() => setConfirmDialog(p => ({ ...p, isOpen: false }))} />
+      <ModalConfirmacion {...confirmDialog} onCancel={() => setConfirmDialog((p: any) => ({ ...p, isOpen: false }))} />
     </div>
   );
 }
