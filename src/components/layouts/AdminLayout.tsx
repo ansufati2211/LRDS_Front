@@ -2,8 +2,8 @@ import { useEffect, useState, useRef } from 'react';
 import { useNavigate, useLocation, Link } from 'react-router-dom';
 import { 
   LayoutDashboard, Package, ShoppingCart, Users, Settings, LogOut, 
-  Wallet, FileSpreadsheet, BoxSelect, MapPin, ChevronDown, UtensilsCrossed,
-  Menu, Moon, Sun, ShieldCheck,BarChart3
+  Wallet, FileSpreadsheet, BoxSelect, MapPin, ChevronDown,
+  Menu, Moon, Sun, ShieldCheck, BarChart3
 } from 'lucide-react';
 import { useAuthStore } from '@/store/authStore';
 import { getSedes, type Sede } from '@/api/sedes';
@@ -16,11 +16,12 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
   const [sedes, setSedes] = useState<Sede[]>([]);
   const [isSedeMenuOpen, setIsSedeMenuOpen] = useState(false);
   const menuRef = useRef<HTMLDivElement>(null);
+  
+  // 🔥 FIX 1: Creamos una referencia para el menú lateral
+  const navRef = useRef<HTMLElement>(null);
 
   const [isDarkMode, setIsDarkMode] = useState(true);
 
-  // 🔥 FIX: persistimos el estado colapsado en localStorage para que
-  // no se reinicie si el layout se remonta al cambiar de ruta.
   const [isCollapsed, setIsCollapsed] = useState<boolean>(() => {
     try {
       return localStorage.getItem('sidebar-collapsed') === 'true';
@@ -34,6 +35,21 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
       localStorage.setItem('sidebar-collapsed', String(isCollapsed));
     } catch {}
   }, [isCollapsed]);
+
+  // 🔥 FIX 2: Restauramos el scroll de la barra lateral al cargar la página
+  useEffect(() => {
+    const savedScroll = sessionStorage.getItem('sidebar-scroll');
+    if (navRef.current && savedScroll) {
+      navRef.current.scrollTop = Number(savedScroll);
+    }
+  }, []);
+
+  // 🔥 FIX 3: Guardamos el scroll cada vez que nos movemos
+  const handleNavScroll = () => {
+    if (navRef.current) {
+      sessionStorage.setItem('sidebar-scroll', navRef.current.scrollTop.toString());
+    }
+  };
 
   useEffect(() => {
     if (user?.rol === 'ROLE_ADMIN_EMPRESA' || user?.rol === 'ROLE_SUPER_ADMIN') {
@@ -58,7 +74,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
 
   const handleLogout = () => { logout(); navigate('/login'); };
 
-const navItems = [
+  const navItems = [
     { name: 'Dashboard', path: '/dashboard', icon: LayoutDashboard, roles: ['ROLE_SUPER_ADMIN', 'ROLE_ADMIN_EMPRESA', 'ROLE_GERENTE_SEDE'] },
     { name: 'Historial Pedidos', path: '/historial', icon: ShoppingCart, roles: ['ROLE_SUPER_ADMIN', 'ROLE_ADMIN_EMPRESA', 'ROLE_GERENTE_SEDE', 'ROLE_CAJERO'] },
     { name: 'Catálogo', path: '/admin/catalogo', icon: BoxSelect, roles: ['ROLE_SUPER_ADMIN', 'ROLE_ADMIN_EMPRESA', 'ROLE_GERENTE_SEDE'] },
@@ -71,12 +87,13 @@ const navItems = [
     { name: 'RRHH', path: '/admin/personal', icon: Users, roles: ['ROLE_SUPER_ADMIN', 'ROLE_ADMIN_EMPRESA', 'ROLE_GERENTE_SEDE'] },
     { name: 'Ajustes', path: '/admin/configuracion', icon: Settings, roles: ['ROLE_SUPER_ADMIN', 'ROLE_ADMIN_EMPRESA'] },
   ];
+  
   const isActive = (path: string) => location.pathname === path;
   
-const filteredNavItems = navItems.filter(item => user && item.roles.includes(user.rol));
+  const filteredNavItems = navItems.filter(item => user && item.roles.includes(user.rol));
 
-  const themeSidebarBg = isDarkMode ? 'bg-[#0a0f1c]' : 'bg-white border-gray-200';
-  const themeHeaderBg = isDarkMode ? 'bg-[#0a0f1c] border-gray-800/60 text-white' : 'bg-white border-gray-200 text-gray-900';
+  const themeSidebarBg = isDarkMode ? 'bg-[#0a0a0a]' : 'bg-white border-gray-200';
+  const themeHeaderBg = isDarkMode ? 'bg-[#0a0a0a] border-gray-800/60 text-white' : 'bg-white border-gray-200 text-gray-900';
   const themeText = isDarkMode ? 'text-white' : 'text-gray-900';
   const themeTextMuted = isDarkMode ? 'text-gray-400' : 'text-gray-500';
 
@@ -85,39 +102,22 @@ const filteredNavItems = navItems.filter(item => user && item.roles.includes(use
     const Icon = item.icon;
 
     const wrapperBase = `group relative flex items-center gap-3 rounded-2xl font-bold transition-all duration-300 ${
-      isCollapsed ? 'justify-center w-14 h-14' : 'w-full px-3 py-3'
+      isCollapsed ? 'justify-center w-12 h-12 mx-auto' : 'w-full px-4 py-3'
     }`;
 
     const wrapperTheme = active
-      ? isDarkMode
-        ? 'bg-white/10 text-white'
-        : 'bg-gray-900/[0.06] text-gray-900'
+      ? 'bg-[#FFC640] text-black shadow-lg shadow-[#FFC640]/10'
       : isDarkMode
         ? 'text-gray-400 hover:text-white hover:bg-white/5'
         : 'text-gray-500 hover:text-gray-900 hover:bg-gray-100';
 
-    const chipTheme = active
-      ? isDarkMode
-        ? 'bg-white text-gray-900 shadow-[0_0_0_4px_rgba(255,255,255,0.08)]'
-        : 'bg-gray-900 text-white shadow-[0_0_0_4px_rgba(17,24,39,0.08)]'
-      : isDarkMode
-        ? 'bg-white/5 text-gray-400 group-hover:bg-white/10 group-hover:text-white'
-        : 'bg-gray-100 text-gray-500 group-hover:bg-gray-200 group-hover:text-gray-900';
-
     return (
       <Link key={item.path} to={item.path} className={`${wrapperBase} ${wrapperTheme}`} title={isCollapsed ? item.name : undefined}>
-        {active && (
-          <span
-            className={`absolute left-0 top-1/2 -translate-y-1/2 h-6 w-1 rounded-full ${
-              isDarkMode ? 'bg-white' : 'bg-gray-900'
-            } ${isCollapsed ? 'opacity-0' : 'opacity-100'} transition-opacity`}
-          />
-        )}
-        <span className={`flex items-center justify-center w-9 h-9 rounded-xl shrink-0 transition-all duration-300 ${chipTheme}`}>
-          <Icon size={18} strokeWidth={active ? 2.5 : 2} />
+        <span className={`flex items-center justify-center shrink-0 transition-all duration-300 ${active ? 'text-black' : ''}`}>
+          <Icon size={20} strokeWidth={active ? 2.5 : 2} />
         </span>
         {!isCollapsed && (
-          <span className="truncate text-[13px] tracking-tight">{item.name}</span>
+          <span className="truncate text-sm tracking-wide">{item.name}</span>
         )}
       </Link>
     );
@@ -143,27 +143,18 @@ const filteredNavItems = navItems.filter(item => user && item.roles.includes(use
       `}</style>
 
       {/* SIDEBAR */}
-      <aside className={`${isCollapsed ? 'w-[100px]' : 'w-[280px]'} ${themeSidebarBg} flex flex-col flex-shrink-0 z-20 relative overflow-hidden transition-all duration-300 ease-in-out border-r ${isDarkMode ? 'border-gray-800/60' : 'border-gray-200'}`}>
+      <aside className={`${isCollapsed ? 'w-[80px]' : 'w-[260px]'} ${themeSidebarBg} flex flex-col flex-shrink-0 z-20 relative overflow-hidden transition-all duration-300 ease-in-out border-r ${isDarkMode ? 'border-gray-800/60' : 'border-gray-200'}`}>
         
-        {isDarkMode && (
-          <>
-            <div className="absolute -top-24 -left-24 w-72 h-72 bg-orange-500/[0.08] rounded-full blur-3xl pointer-events-none" />
-            <div className="absolute bottom-0 left-0 w-full h-64 bg-gradient-to-t from-sky-500/[0.05] to-transparent pointer-events-none" />
-          </>
-        )}
-
         <div className={`p-6 mb-2 flex items-center ${isCollapsed ? 'justify-center' : 'gap-4'} relative z-10 transition-all`}>
-          <div className="relative bg-gradient-to-br from-orange-500 to-amber-500 p-3 rounded-2xl text-white shadow-lg shadow-orange-500/30 flex-shrink-0">
-            <UtensilsCrossed size={isCollapsed ? 20 : 24} strokeWidth={2.5} />
-            <span className="absolute -bottom-1 -right-1 w-3.5 h-3.5 rounded-full bg-green-400 border-2 border-[#0a0f1c] shadow-[0_0_6px_rgba(74,222,128,0.7)]" />
-          </div>
-          {!isCollapsed && (
+          {isCollapsed ? (
+            <div className="text-3xl font-black text-[#FFC640]">RS</div>
+          ) : (
             <div className="overflow-hidden animate-in fade-in duration-300">
-              <h1 className={`text-base font-black ${themeText} tracking-tight leading-tight truncate`}>
-                {nombreMostrar}
+              <h1 className={`text-2xl font-black ${themeText} tracking-tight leading-tight truncate`}>
+                SIS<span className="text-[#FFC640]">TE</span>MA 
               </h1>
-              <p className={`text-[10px] ${themeTextMuted} font-bold uppercase tracking-[0.2em] truncate mt-0.5`}>
-                Ruta del Sabor OS
+              <p className={`text-[10px] ${themeTextMuted} font-bold uppercase tracking-widest truncate mt-0.5`}>
+                La Ruta del Sabor
               </p>
             </div>
           )}
@@ -171,10 +162,12 @@ const filteredNavItems = navItems.filter(item => user && item.roles.includes(use
 
         <div className={`mx-6 h-px ${isDarkMode ? 'bg-gradient-to-r from-transparent via-gray-800 to-transparent' : 'bg-gradient-to-r from-transparent via-gray-200 to-transparent'}`} />
 
-        <nav className={`flex-1 ${isCollapsed ? 'px-3' : 'px-4'} py-6 space-y-1.5 overflow-y-auto custom-scrollbar relative z-10 flex flex-col ${isCollapsed ? 'items-center' : ''}`}>
-          {!isCollapsed && (
-            <p className="px-3 text-[10px] font-black text-gray-500 uppercase tracking-[0.2em] mb-3">Menú Principal</p>
-          )}
+        {/* 🔥 FIX 4: Asignamos el ref y el onScroll al contenedor de navegación */}
+        <nav 
+          ref={navRef}
+          onScroll={handleNavScroll}
+          className={`flex-1 ${isCollapsed ? 'px-2' : 'px-4'} py-6 space-y-1.5 overflow-y-auto custom-scrollbar relative z-10 flex flex-col`}
+        >
           {filteredNavItems.map(renderNavItem)}
         </nav>
 
@@ -182,15 +175,15 @@ const filteredNavItems = navItems.filter(item => user && item.roles.includes(use
           <div className={`mb-3 h-px ${isDarkMode ? 'bg-gradient-to-r from-transparent via-gray-800 to-transparent' : 'bg-gradient-to-r from-transparent via-gray-200 to-transparent'}`} />
           <button 
             onClick={handleLogout} 
-            className={`group flex items-center gap-3 font-bold transition-all ${
-              isDarkMode ? 'text-gray-400 hover:text-red-400 hover:bg-red-500/10' : 'text-gray-500 hover:text-red-600 hover:bg-red-50'
-            } ${isCollapsed ? 'p-3 w-14 justify-center' : 'w-full px-3 py-3'} rounded-2xl`}
-            title={isCollapsed ? "Salir del sistema" : undefined}
+            className={`group flex items-center gap-4 font-bold transition-all ${
+              isDarkMode ? 'text-gray-400 hover:text-white hover:bg-white/5' : 'text-gray-500 hover:text-gray-900 hover:bg-gray-100'
+            } ${isCollapsed ? 'p-3 w-12 h-12 justify-center mx-auto' : 'w-full px-4 py-3'} rounded-2xl`}
+            title={isCollapsed ? "Salir del Sistema" : undefined}
           >
-            <span className={`flex items-center justify-center w-9 h-9 rounded-xl shrink-0 transition-all ${isDarkMode ? 'bg-white/5 group-hover:bg-red-500/10' : 'bg-gray-100 group-hover:bg-red-100'}`}>
-              <LogOut size={16} className="group-hover:-translate-x-0.5 transition-transform" />
+            <span className="flex items-center justify-center shrink-0 transition-all">
+              <LogOut size={20} className="group-hover:-translate-x-0.5 transition-transform" />
             </span>
-            {!isCollapsed && <span className="text-[13px]">Salir del sistema</span>}
+            {!isCollapsed && <span className="text-sm tracking-wide">Salir del Sistema</span>}
           </button>
         </div>
       </aside>
@@ -213,7 +206,7 @@ const filteredNavItems = navItems.filter(item => user && item.roles.includes(use
               </h2>
               <div
                 key={location.pathname}
-                className={`h-[3px] rounded-full mt-1.5 ${isDarkMode ? 'bg-gradient-to-r from-orange-500 to-amber-500' : 'bg-gradient-to-r from-gray-900 to-gray-700'}`}
+                className={`h-[3px] rounded-full mt-1.5 ${isDarkMode ? 'bg-[#FFC640]' : 'bg-gray-900'}`}
                 style={{ animation: 'underline-grow 0.4s ease-out forwards' }}
               />
             </div>
@@ -223,7 +216,7 @@ const filteredNavItems = navItems.filter(item => user && item.roles.includes(use
             
             <button 
               onClick={() => setIsDarkMode(!isDarkMode)} 
-              className={`p-2.5 rounded-xl transition-all active:scale-95 ${isDarkMode ? 'bg-amber-500/10 hover:bg-amber-500/20 text-amber-400' : 'bg-indigo-50 hover:bg-indigo-100 text-indigo-600'}`}
+              className={`p-2.5 rounded-xl transition-all active:scale-95 ${isDarkMode ? 'bg-[#FFC640]/10 hover:bg-[#FFC640]/20 text-[#FFC640]' : 'bg-indigo-50 hover:bg-indigo-100 text-indigo-600'}`}
               title="Alternar Tema"
             >
               {isDarkMode ? <Sun size={20} /> : <Moon size={20} />}
@@ -235,8 +228,8 @@ const filteredNavItems = navItems.filter(item => user && item.roles.includes(use
                   onClick={() => setIsSedeMenuOpen(!isSedeMenuOpen)}
                   className={`flex items-center gap-3 border px-4 py-2.5 rounded-xl shadow-sm transition-all focus:outline-none active:scale-[0.98] ${isDarkMode ? 'bg-[#131a2b] border-gray-700/60 hover:border-gray-600' : 'bg-white border-gray-200 hover:border-gray-300 hover:bg-gray-50'}`}
                 >
-                  <span className={`flex items-center justify-center w-7 h-7 rounded-lg ${isDarkMode ? 'bg-orange-500/10' : 'bg-orange-50'}`}>
-                    <MapPin size={14} className="text-orange-500" />
+                  <span className={`flex items-center justify-center w-7 h-7 rounded-lg ${isDarkMode ? 'bg-[#FFC640]/10' : 'bg-orange-50'}`}>
+                    <MapPin size={14} className={isDarkMode ? 'text-[#FFC640]' : 'text-orange-500'} />
                   </span>
                   <div className="hidden sm:flex flex-col items-start text-left">
                     <span className={`text-[9px] font-black uppercase leading-none tracking-widest mb-0.5 ${isDarkMode ? 'text-gray-400' : 'text-gray-500'}`}>Sede Activa</span>
@@ -282,13 +275,13 @@ const filteredNavItems = navItems.filter(item => user && item.roles.includes(use
                 <span className={`inline-flex items-center gap-1 mt-1 px-2 py-0.5 rounded-full text-[9px] font-black uppercase tracking-widest ${
                   isDarkMode ? 'bg-white/5 text-gray-400' : 'bg-gray-100 text-gray-500'
                 }`}>
-                  <ShieldCheck size={10} className="text-orange-500" />
+                  <ShieldCheck size={10} className={isDarkMode ? 'text-[#FFC640]' : 'text-orange-500'} />
                   {user?.rol.replace('ROLE_', '').replace('_', ' ')}
                 </span>
               </div>
               <div className="relative w-11 h-11 shrink-0">
-                <div className="absolute inset-0 rounded-xl bg-gradient-to-br from-orange-500 to-amber-500 p-[2px]">
-                  <div className={`w-full h-full rounded-[9px] flex items-center justify-center font-black text-lg ${isDarkMode ? 'bg-[#0a0f1c] text-orange-400' : 'bg-white text-orange-600'}`}>
+                <div className={`absolute inset-0 rounded-xl p-[2px] ${isDarkMode ? 'bg-[#FFC640]' : 'bg-gradient-to-br from-orange-500 to-amber-500'}`}>
+                  <div className={`w-full h-full rounded-[9px] flex items-center justify-center font-black text-lg ${isDarkMode ? 'bg-[#0a0a0a] text-[#FFC640]' : 'bg-white text-orange-600'}`}>
                     {user?.nombre?.charAt(0).toUpperCase() || 'U'}
                   </div>
                 </div>

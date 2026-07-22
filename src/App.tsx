@@ -1,4 +1,4 @@
-import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
+import { HashRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { Toaster } from 'sileo';
 
 import LoginPage from '@/pages/LoginPage';
@@ -44,7 +44,7 @@ export default function App() {
     <>
       <Toaster position="top-center" theme="dark" options={{ fill: 'black' }} /> 
       
-      <BrowserRouter>
+      <HashRouter>
         <Routes>
 
           <Route path="/login" element={isAuthenticated ? <Navigate to={getHomeRoute()} replace /> : <LoginPage />} />
@@ -83,7 +83,7 @@ export default function App() {
           <Route path="/" element={<Navigate to={getHomeRoute()} replace />} />
           <Route path="*" element={<Navigate to={isAuthenticated ? getHomeRoute() : "/login"} replace />} />
         </Routes>
-      </BrowserRouter>
+      </HashRouter>
     </>
   );
 }

@@ -1,44 +1,28 @@
 import { useEffect, useState, useCallback } from 'react';
-import { Search, Plus, Edit2, Trash2, MapPin, Building, ShieldAlert, CheckCircle, X, RotateCcw } from 'lucide-react';
+import { Search, Plus, Edit2, Trash2, MapPin, Building, ShieldAlert, CheckCircle, X, RotateCcw, AlertTriangle } from 'lucide-react';
 import { getSedes, crearSede, actualizarSede, eliminarSede, activarSede } from '@/api/sedes';
 import type { Sede } from '@/api/sedes';
 import AdminLayout from '@/components/layouts/AdminLayout';
 import { sileo } from 'sileo';
 
-// ==========================================
-// COMPONENTE: MODAL CONFIRMACIÓN PREMIUM
-// ==========================================
-function ModalConfirmacion({ isOpen, title, message, type, onConfirm, onCancel, loading }: any) {
+// ============================================================================
+// COMPONENTE: MODAL DE CONFIRMACIÓN (ESTILO UNIFICADO PREMIUM)
+// ============================================================================
+function ModalConfirmacion({ isOpen, title, message, onClose, onConfirm }: { isOpen: boolean; title: string; message: string; onClose: () => void; onConfirm: () => void }) {
   if (!isOpen) return null;
-  
-  const isDanger = type === 'danger';
-
   return (
-    <div className="fixed inset-0 bg-gray-900/40 backdrop-blur-sm flex items-center justify-center z-50 p-4 animate-in fade-in duration-200">
-      <div className="bg-white rounded-[2rem] shadow-2xl w-full max-w-sm overflow-hidden animate-in zoom-in-95 duration-200">
-        <div className={`px-8 py-6 flex flex-col items-center text-center ${isDanger ? 'bg-red-50/50' : 'bg-emerald-50/50'}`}>
-          <div className={`w-16 h-16 rounded-full flex items-center justify-center mb-4 ${isDanger ? 'bg-red-100 text-red-500 shadow-inner shadow-red-200' : 'bg-emerald-100 text-emerald-500 shadow-inner shadow-emerald-200'}`}>
-            {isDanger ? <ShieldAlert size={32} /> : <RotateCcw size={32} />}
-          </div>
-          <h2 className={`font-black text-xl tracking-tight mb-2 ${isDanger ? 'text-red-700' : 'text-emerald-700'}`}>
-            {title}
-          </h2>
-          <p className="text-sm font-medium text-gray-600 leading-relaxed">
-            {message}
-          </p>
+    <div className="fixed inset-0 bg-gray-900/60 backdrop-blur-sm flex items-center justify-center z-[9999] p-4 animate-in fade-in duration-200">
+      <div className="bg-white rounded-[2rem] shadow-2xl w-full max-w-md overflow-hidden animate-in zoom-in-95 duration-200 p-8 text-center space-y-6">
+        <div className="w-16 h-16 bg-orange-50 text-orange-500 rounded-full flex items-center justify-center mx-auto shadow-inner">
+          <AlertTriangle size={32} />
         </div>
-        
-        <div className="p-6 flex gap-3 bg-white">
-          <button onClick={onCancel} disabled={loading} className="flex-1 px-5 py-3.5 border border-gray-200 text-gray-600 rounded-xl font-bold hover:bg-gray-50 transition-all">
-            Cancelar
-          </button>
-          <button 
-            onClick={onConfirm} 
-            disabled={loading} 
-            className={`flex-1 px-5 py-3.5 text-white rounded-xl font-bold transition-all shadow-lg flex justify-center items-center ${isDanger ? 'bg-gradient-to-r from-red-500 to-rose-500 hover:from-red-600 hover:to-rose-600 shadow-red-500/30' : 'bg-gradient-to-r from-emerald-500 to-teal-500 hover:from-emerald-600 hover:to-teal-600 shadow-emerald-500/30'} disabled:opacity-50`}
-          >
-            {loading ? 'Procesando...' : 'Confirmar'}
-          </button>
+        <div>
+          <h3 className="text-xl font-black text-gray-900 tracking-tight">{title}</h3>
+          <p className="text-gray-500 text-sm font-medium mt-2">{message}</p>
+        </div>
+        <div className="flex gap-3 pt-2">
+          <button type="button" onClick={onClose} className="flex-1 px-5 py-3.5 border border-gray-200 text-gray-600 rounded-xl font-bold hover:bg-gray-50 transition-all">Cancelar</button>
+          <button type="button" onClick={() => { onConfirm(); onClose(); }} className="flex-1 px-5 py-3.5 bg-gradient-to-r from-orange-500 to-amber-500 hover:from-orange-400 hover:to-amber-400 text-white font-black rounded-xl">Sí, confirmar</button>
         </div>
       </div>
     </div>
@@ -49,7 +33,6 @@ function ModalConfirmacion({ isOpen, title, message, type, onConfirm, onCancel, 
 // COMPONENTE: MODAL CREAR/EDITAR SEDE
 // ==========================================
 function ModalSede({ sede, onClose, onGuardar }: { sede?: Sede | null; onClose: () => void; onGuardar: () => void }) {
-  // 🔥 AQUÍ ESTÁ EL CAMBIO: "Sede " por defecto si es una nueva creación
   const [nombre, setNombre] = useState(sede?.nombre || 'Sede ');
   const [direccion, setDireccion] = useState(sede?.direccion || '');
   const [codigoEstablecimiento, setCodigoEstablecimiento] = useState(sede?.codigoEstablecimiento || '');
@@ -115,7 +98,7 @@ function ModalSede({ sede, onClose, onGuardar }: { sede?: Sede | null; onClose: 
           </div>
           <div className="pt-4 flex gap-3">
             <button type="button" onClick={onClose} className="flex-1 px-5 py-3.5 border border-gray-200 text-gray-600 rounded-xl font-bold hover:bg-gray-50 hover:text-gray-900 transition-all">Cancelar</button>
-            <button type="submit" disabled={loading} className="flex-1 px-5 py-3.5 bg-gradient-to-r from-orange-500 to-amber-500 hover:from-orange-600 hover:to-amber-600 text-white rounded-xl font-bold transition-all shadow-lg shadow-orange-500/30 disabled:opacity-50">
+            <button type="submit" disabled={loading} className="flex-1 px-5 py-3.5 bg-gradient-to-r from-orange-500 to-amber-500 hover:from-orange-400 hover:to-amber-400 text-white font-black rounded-xl transition-all shadow-lg shadow-orange-500/30 disabled:opacity-50">
               {loading ? 'Guardando...' : 'Guardar Local'}
             </button>
           </div>
@@ -136,9 +119,7 @@ export default function SedesPage() {
   
   // Modales
   const [modal, setModal] = useState<{ isOpen: boolean; data?: Sede | null }>({ isOpen: false });
-  const [confirmDialog, setConfirmDialog] = useState<{ isOpen: boolean, title: string, message: string, type: 'danger' | 'success', onConfirm: () => void, isProcessing: boolean }>({
-    isOpen: false, title: '', message: '', type: 'danger', onConfirm: () => {}, isProcessing: false
-  });
+  const [confirmModal, setConfirmModal] = useState<{ isOpen: boolean; title: string; message: string; action: () => void }>({ isOpen: false, title: '', message: '', action: () => {} });
 
   const cargarDatos = useCallback(async () => {
     setLoading(true);
@@ -154,46 +135,35 @@ export default function SedesPage() {
 
   useEffect(() => { cargarDatos(); }, [cargarDatos]);
 
-  // 🔥 NUEVA LÓGICA DE CONFIRMACIÓN CUSTOM (ELIMINA EL WINDOW.CONFIRM)
   const handleEliminar = (id: number) => {
-    setConfirmDialog({
+    setConfirmModal({
       isOpen: true,
       title: '¿Inhabilitar Local?',
       message: 'Se cerrará la sesión de todos los usuarios asignados a esta sede y se ocultará del sistema operativo.',
-      type: 'danger',
-      isProcessing: false,
-      onConfirm: async () => {
-        setConfirmDialog(prev => ({ ...prev, isProcessing: true }));
+      action: async () => {
         try { 
           await eliminarSede(id); 
           sileo.success({ title: 'Local inhabilitado' });
           cargarDatos(); 
         } catch (e: any) { 
           sileo.error({ title: e.response?.data?.message || 'Error al inhabilitar local' }); 
-        } finally {
-          setConfirmDialog(prev => ({ ...prev, isOpen: false }));
         }
       }
     });
   };
 
   const handleActivar = (id: number) => {
-    setConfirmDialog({
+    setConfirmModal({
       isOpen: true,
       title: '¿Restaurar Local?',
       message: 'El local volverá a estar operativo y el personal podrá iniciar sesión.',
-      type: 'success',
-      isProcessing: false,
-      onConfirm: async () => {
-        setConfirmDialog(prev => ({ ...prev, isProcessing: true }));
+      action: async () => {
         try { 
           await activarSede(id); 
           sileo.success({ title: 'Local restaurado' });
           cargarDatos(); 
         } catch (e: any) { 
           sileo.error({ title: e.response?.data?.message || 'Error al restaurar local' }); 
-        } finally {
-          setConfirmDialog(prev => ({ ...prev, isOpen: false }));
         }
       }
     });
@@ -235,7 +205,7 @@ export default function SedesPage() {
               <input type="text" placeholder="Buscar local..." value={busqueda} onChange={e => setBusqueda(e.target.value)} className="bg-transparent text-gray-900 text-sm font-semibold outline-none w-full placeholder-gray-400" />
             </div>
             {tab === 'ACTIVOS' && (
-              <button onClick={() => setModal({ isOpen: true, data: null })} className="w-full sm:w-auto bg-gradient-to-r from-orange-500 to-amber-500 hover:from-orange-600 hover:to-amber-600 text-white shadow-lg shadow-orange-500/30 px-6 py-3 rounded-xl font-bold flex justify-center items-center gap-2 transition-all active:scale-95 whitespace-nowrap">
+              <button onClick={() => setModal({ isOpen: true, data: null })} className="w-full sm:w-auto bg-gradient-to-r from-orange-500 to-amber-500 hover:from-orange-400 hover:to-amber-400 text-white font-black px-6 py-3 rounded-xl flex justify-center items-center gap-2 transition-all active:scale-95 whitespace-nowrap">
                 <Plus size={18} /> Nuevo Local
               </button>
             )}
@@ -276,7 +246,7 @@ export default function SedesPage() {
                         <div className="flex items-center gap-2"><MapPin size={14} className="text-gray-400"/> {s.direccion || 'No especificada'}</div>
                       </td>
                       <td className="px-8 py-5 text-center">
-                        <span className="font-mono font-bold text-gray-500 bg-gray-100 px-3 py-1.5 rounded-xl border border-gray-200">{s.codigoEstablecimiento || '0000'}</span>
+                        <span className="font-mono font-bold text-gray-900 bg-gray-100 px-3 py-1.5 rounded-xl border border-gray-200">{s.codigoEstablecimiento || '0000'}</span>
                       </td>
                       <td className="px-8 py-5 text-center">
                         {s.estadoRegistro ? (
@@ -291,18 +261,18 @@ export default function SedesPage() {
                       </td>
                       <td className="px-8 py-5 text-right">
                         {tab === 'ACTIVOS' ? (
-                          <div className="flex justify-end gap-3">
-                            <button onClick={() => setModal({ isOpen: true, data: s })} className="w-10 h-10 bg-white border border-gray-200 rounded-[12px] flex items-center justify-center text-blue-600 hover:border-blue-300 hover:bg-blue-50 hover:shadow-md transition-all">
-                              <Edit2 size={18} />
+                          <div className="flex justify-end gap-4">
+                            <button onClick={() => setModal({ isOpen: true, data: s })} className="text-[#FFC640] hover:scale-110 transition-transform" title="Editar">
+                              <Edit2 size={18} strokeWidth={2} />
                             </button>
-                            <button onClick={() => handleEliminar(s.id)} className="w-10 h-10 bg-white border border-gray-200 rounded-[12px] flex items-center justify-center text-red-600 hover:border-red-300 hover:bg-red-50 hover:shadow-md transition-all">
-                              <Trash2 size={18} />
+                            <button onClick={() => handleEliminar(s.id)} className="text-[#C1440E] hover:scale-110 transition-transform" title="Ocultar">
+                              <Trash2 size={18} strokeWidth={2} />
                             </button>
                           </div>
                         ) : (
                           <div className="flex justify-end">
-                            <button onClick={() => handleActivar(s.id)} className="px-4 h-10 bg-emerald-50 border border-emerald-200 rounded-[12px] flex items-center justify-center text-emerald-700 hover:border-emerald-400 hover:bg-emerald-100 transition-all font-bold text-xs gap-2">
-                              <RotateCcw size={16} /> Restaurar
+                            <button onClick={() => handleActivar(s.id)} className="text-emerald-500 hover:scale-110 transition-transform flex items-center gap-1.5 font-bold text-xs" title="Restaurar Local">
+                              <RotateCcw size={18} strokeWidth={2} /> Restaurar
                             </button>
                           </div>
                         )}
@@ -319,15 +289,15 @@ export default function SedesPage() {
       {modal.isOpen && <ModalSede sede={modal.data} onClose={() => setModal({ isOpen: false })} onGuardar={() => { setModal({ isOpen: false }); cargarDatos(); }} />}
 
       {/* MODAL DE CONFIRMACIÓN CUSTOM */}
-      <ModalConfirmacion 
-        isOpen={confirmDialog.isOpen} 
-        title={confirmDialog.title} 
-        message={confirmDialog.message} 
-        type={confirmDialog.type} 
-        loading={confirmDialog.isProcessing}
-        onConfirm={confirmDialog.onConfirm} 
-        onCancel={() => setConfirmDialog(prev => ({ ...prev, isOpen: false }))} 
-      />
+      {confirmModal.isOpen && (
+        <ModalConfirmacion 
+          isOpen={confirmModal.isOpen}
+          title={confirmModal.title}
+          message={confirmModal.message}
+          onClose={() => setConfirmModal(prev => ({ ...prev, isOpen: false }))}
+          onConfirm={confirmModal.action}
+        />
+      )}
     </AdminLayout>
   );
 }

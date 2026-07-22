@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { 
   DollarSign, ShoppingBag, TrendingUp, AlertTriangle, 
   RefreshCw, Download, Sparkles, Clock, ArrowRight,
-  Wallet, UtensilsCrossed, ChefHat
+  Wallet, UtensilsCrossed, ChefHat, ChevronDown, CheckCircle
 } from 'lucide-react';
 import { getDashboard, getAlertasStock } from '@/api/reportes';
 import type { DashboardVentas, InsumoAlerta } from '@/api/reportes';
@@ -27,28 +27,103 @@ const MetricCard = ({ icon, title, value, subtitle, colorClass, bgClass, trend }
   </div>
 );
 
-const GraficoBarras = ({ datos }: { datos: DashboardVentas['detalleDiario'] }) => {
-  if (!datos || datos.length === 0) return <div className="h-full flex items-center justify-center text-gray-400 text-sm font-medium">Sin datos para graficar en este período</div>;
+// ============================================================================
+// COMPONENTE: GRÁFICO DE BARRAS DARK (Panorámico)
+// ============================================================================
+const GraficoBarrasDark = ({ datos }: { datos: any[] }) => {
+  if (!datos || datos.length === 0) return <div className="h-full flex items-center justify-center text-gray-500 text-lg font-medium">Sin datos para graficar</div>;
   const maxIngreso = Math.max(...datos.map((d) => d.ingresos), 1);
-  const W = 600, H = 250, PL = 50, PR = 12, PT = 20, PB = 36;
+  const W = 1000, H = 320, PL = 70, PR = 20, PT = 30, PB = 45;
   const innerW = W - PL - PR, innerH = H - PT - PB;
-  const barW = Math.max(6, innerW / datos.length - 8);
+  const barW = Math.max(40, (innerW / datos.length) - 30);
+  const dias = ['Dom', 'Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb'];
+
   return (
-    <svg viewBox={`0 0 ${W} ${H}`} className="w-full h-full min-h-[250px] overflow-visible">
-      {[0, 0.25, 0.5, 0.75, 1].map((t) => (
-        <g key={t}>
-          <line x1={PL} y1={PT + innerH * (1 - t)} x2={W - PR} y2={PT + innerH * (1 - t)} stroke="#f1f5f9" strokeWidth="1.5" strokeDasharray="4 4" />
-          <text x={PL - 10} y={PT + innerH * (1 - t) + 4} textAnchor="end" fontSize="11" fontWeight="600" fill="#94a3b8">{Math.round(maxIngreso * t)}</text>
-        </g>
-      ))}
+    <svg viewBox={`0 0 ${W} ${H}`} className="w-full h-full overflow-visible">
+      {[0, 0.33, 0.66, 1].map((t) => {
+        const y = PT + innerH * (1 - t);
+        return (
+          <g key={t}>
+            <line x1={PL} y1={y} x2={W - PR} y2={y} stroke="#334155" strokeWidth="1.5" strokeDasharray="5 5" opacity="0.4" />
+            <text x={PL - 15} y={y + 6} textAnchor="end" fontSize="16" fontWeight="700" fill="#94a3b8">
+              {Math.round(maxIngreso * t)}
+            </text>
+          </g>
+        );
+      })}
       {datos.map((d, i) => {
         const barH = (d.ingresos / maxIngreso) * innerH;
         const x = PL + (i / datos.length) * innerW + (innerW / datos.length - barW) / 2;
         const y = PT + innerH - barH;
+        const date = new Date(d.fecha + 'T00:00:00');
+        const dayName = dias[date.getDay()];
+
         return (
           <g key={d.fecha} className="group">
-            <rect x={x} y={y} width={barW} height={barH} rx="6" fill="#f97316" opacity="0.9" className="group-hover:opacity-100 group-hover:fill-orange-500 transition-all cursor-pointer" />
-            {datos.length <= 15 && <text x={x + barW / 2} y={H - PB + 22} textAnchor="middle" fontSize="11" fontWeight="600" fill="#64748b">{d.fecha.slice(5)}</text>}
+            <line x1={x + barW/2} y1={PT} x2={x + barW/2} y2={PT + innerH} stroke="#334155" strokeWidth="1.5" strokeDasharray="5 5" opacity="0.2" />
+            <rect x={x} y={y} width={barW} height={barH} rx="6" fill="#FFC640" opacity="0.95" className="hover:opacity-100 hover:fill-amber-400 transition-all cursor-pointer">
+              <title>{dayName}: S/ {Number(d.ingresos).toFixed(2)}</title>
+            </rect>
+            {datos.length <= 15 && (
+              <text x={x + barW / 2} y={H - PB + 30} textAnchor="middle" fontSize="16" fontWeight="700" fill="#94a3b8">{dayName}</text>
+            )}
+          </g>
+        );
+      })}
+      <line x1={PL} y1={PT + innerH} x2={W - PR} y2={PT + innerH} stroke="#475569" strokeWidth="2.5" />
+    </svg>
+  );
+};
+
+// ============================================================================
+// COMPONENTE: GRÁFICO DE LÍNEAS DARK (Panorámico)
+// ============================================================================
+const GraficoLineasDark = ({ datos }: { datos: any[] }) => {
+  if (!datos || datos.length === 0) return <div className="h-full flex items-center justify-center text-gray-500 text-lg font-medium">Sin datos para graficar</div>;
+  const maxPedidos = Math.max(...datos.map((d) => d.pedidos), 1);
+  const W = 1000, H = 320, PL = 70, PR = 30, PT = 30, PB = 45;
+  const innerW = W - PL - PR, innerH = H - PT - PB;
+  const dias = ['Dom', 'Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb'];
+
+  const points = datos.map((d, i) => {
+    const x = PL + (i / Math.max(datos.length - 1, 1)) * innerW;
+    const y = PT + innerH - ((d.pedidos / maxPedidos) * innerH);
+    return `${x},${y}`;
+  });
+  const pathD = `M ${points.join(' L ')}`;
+
+  return (
+    <svg viewBox={`0 0 ${W} ${H}`} className="w-full h-full overflow-visible">
+      {[0, 0.33, 0.66, 1].map((t) => {
+        const y = PT + innerH * (1 - t);
+        return (
+          <g key={t}>
+            <line x1={PL} y1={y} x2={W - PR} y2={y} stroke="#334155" strokeWidth="1.5" strokeDasharray="5 5" opacity="0.4" />
+            <text x={PL - 15} y={y + 6} textAnchor="end" fontSize="16" fontWeight="700" fill="#94a3b8">
+              {Math.round(maxPedidos * t)}
+            </text>
+          </g>
+        );
+      })}
+      
+      <path d={pathD} stroke="#FFC640" strokeWidth="4" fill="none" />
+      <line x1={PL} y1={PT + innerH} x2={W - PR} y2={PT + innerH} stroke="#475569" strokeWidth="2.5" />
+      
+      {datos.map((d, i) => {
+        const x = PL + (i / Math.max(datos.length - 1, 1)) * innerW;
+        const y = PT + innerH - ((d.pedidos / maxPedidos) * innerH);
+        const date = new Date(d.fecha + 'T00:00:00');
+        const dayName = dias[date.getDay()];
+
+        return (
+          <g key={d.fecha}>
+            <line x1={x} y1={PT} x2={x} y2={PT + innerH} stroke="#334155" strokeWidth="1.5" strokeDasharray="5 5" opacity="0.2" />
+            <circle cx={x} cy={y} r="8" fill="#050505" stroke="#FFC640" strokeWidth="3.5" className="hover:r-[11] transition-all cursor-pointer">
+              <title>{dayName}: {d.pedidos} pedidos</title>
+            </circle>
+            {datos.length <= 15 && (
+              <text x={x} y={H - PB + 30} textAnchor="middle" fontSize="16" fontWeight="700" fill="#94a3b8">{dayName}</text>
+            )}
           </g>
         );
       })}
@@ -64,10 +139,12 @@ export default function DashboardPage() {
   const { user, sedeSeleccionadaId } = useAuthStore();
   const [inicio, setInicio] = useState(hace30Dias());
   const [fin, setFin] = useState(hoy());
-  const [dashboard, setDashboard] = useState<DashboardVentas | null>(null);
+  const [dashboard, setDashboard] = useState<DashboardVentas | any>(null);
   const [alertas, setAlertas] = useState<InsumoAlerta[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
+  
+  const [stockDesplegado, setStockDesplegado] = useState(false);
 
   const horaActual = new Date().getHours();
   const saludo = horaActual < 12 ? 'Buenos días' : horaActual < 18 ? 'Buenas tardes' : 'Buenas noches';
@@ -91,9 +168,8 @@ export default function DashboardPage() {
 
   useEffect(() => { cargarDatos(); }, [cargarDatos]);
 
-const descargarExcel = () => {
+  const descargarExcel = () => {
     const token = useAuthStore.getState().token;
-    // 🔥 FIX: Ruta correcta y apuntando directamente al puerto 8080 de Java
     let url = `http://localhost:8080/api/reportes/excel?inicio=${inicio}&fin=${fin}&token=${token}`;
     if (sedeSeleccionadaId) url += `&sedeId=${sedeSeleccionadaId}`;
     window.open(url, '_blank');
@@ -108,7 +184,7 @@ const descargarExcel = () => {
       <div className="max-w-[1400px] mx-auto space-y-8">
         
         {/* BANNER PRINCIPAL */}
-        <div className="relative bg-[#0a0f1c] rounded-[2.5rem] p-8 md:p-12 overflow-hidden shadow-2xl border border-gray-800/60">
+        <div className="relative bg-[#050505] rounded-[2.5rem] p-8 md:p-12 overflow-hidden shadow-2xl border border-gray-800/40">
           <div className="absolute top-0 right-0 w-[600px] h-[600px] bg-gradient-to-bl from-orange-500/30 to-purple-600/10 rounded-full blur-[100px] -translate-y-1/2 translate-x-1/4 pointer-events-none"></div>
           <div className="absolute bottom-0 left-0 w-[400px] h-[400px] bg-gradient-to-tr from-blue-600/20 to-emerald-500/10 rounded-full blur-[80px] translate-y-1/3 -translate-x-1/4 pointer-events-none"></div>
           
@@ -153,9 +229,7 @@ const descargarExcel = () => {
           </div>
         </div>
 
-        {/* ========================================================================= */}
-        {/* NUEVA SECCIÓN: BOTONES DE ACCESO RÁPIDO PARA EL DUEÑO (SALTO OPERATIVO) */}
-        {/* ========================================================================= */}
+        {/* ACCESOS RÁPIDOS */}
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
           <button onClick={() => navigate('/cajero')} className="bg-gradient-to-br from-emerald-500 to-teal-600 p-6 rounded-[2rem] text-white flex items-center justify-between shadow-lg shadow-emerald-500/20 hover:scale-[1.03] transition-transform group text-left">
              <div className="flex items-center gap-4">
@@ -164,7 +238,6 @@ const descargarExcel = () => {
              </div>
              <ArrowRight className="group-hover:translate-x-1 transition-transform" />
           </button>
-          
           <button onClick={() => navigate('/mozo')} className="bg-gradient-to-br from-blue-500 to-indigo-600 p-6 rounded-[2rem] text-white flex items-center justify-between shadow-lg shadow-blue-500/20 hover:scale-[1.03] transition-transform group text-left">
              <div className="flex items-center gap-4">
                <div className="bg-white/20 p-3 rounded-2xl group-hover:bg-white/30 transition-colors"><UtensilsCrossed size={26} strokeWidth={2.5} /></div>
@@ -172,7 +245,6 @@ const descargarExcel = () => {
              </div>
              <ArrowRight className="group-hover:translate-x-1 transition-transform" />
           </button>
-          
           <button onClick={() => navigate('/cocina')} className="bg-gradient-to-br from-orange-500 to-amber-500 p-6 rounded-[2rem] text-white flex items-center justify-between shadow-lg shadow-orange-500/20 hover:scale-[1.03] transition-transform group text-left">
              <div className="flex items-center gap-4">
                <div className="bg-white/20 p-3 rounded-2xl group-hover:bg-white/30 transition-colors"><ChefHat size={26} strokeWidth={2.5} /></div>
@@ -182,48 +254,56 @@ const descargarExcel = () => {
           </button>
         </div>
 
-        {error && <div className="bg-red-50 border border-red-200 text-red-700 px-6 py-4 rounded-2xl text-sm font-bold">{error}</div>}
-        
+        {/* KPI CARDS */}
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-          <MetricCard icon={<DollarSign size={28} strokeWidth={2.5} />} title="Ingresos Totales" value={`S/ ${dashboard?.ingresosTotalesMensuales.toFixed(2) || '0.00'}`} subtitle="Dinero cobrado en caja" bgClass="bg-green-100/50" colorClass="text-green-600" trend="+12.5%" />
+          <MetricCard icon={<DollarSign size={28} strokeWidth={2.5} />} title="Ingresos Totales" value={`S/ ${dashboard?.ingresosTotalesMensuales?.toFixed(2) || '0.00'}`} subtitle="Dinero cobrado en caja" bgClass="bg-green-100/50" colorClass="text-green-600" />
           <MetricCard icon={<ShoppingBag size={28} strokeWidth={2.5} />} title="Pedidos Pagados" value={dashboard?.pedidosTotalesMensuales || 0} subtitle="Mesas y deliveries completados" bgClass="bg-blue-100/50" colorClass="text-blue-600" />
           <MetricCard icon={<TrendingUp size={28} strokeWidth={2.5} />} title="Ticket Promedio" value={`S/ ${ticketPromedio.toFixed(2)}`} subtitle="Gasto promedio por cliente" bgClass="bg-purple-100/50" colorClass="text-purple-600" />
         </div>
         
-        <div className="grid grid-cols-1 xl:grid-cols-3 gap-6">
-          
-          <div className="xl:col-span-2 bg-white rounded-[2.5rem] border border-gray-100 shadow-sm p-8 flex flex-col min-h-[420px]">
-            <h3 className="text-xl font-black text-gray-900 tracking-tight mb-8">Evolución de Ingresos</h3>
-            <div className="flex-1 w-full h-full mt-4">
-              {loading ? <div className="h-full flex items-center justify-center text-gray-400 font-medium">Renderizando gráfica...</div> : <GraficoBarras datos={dashboard?.detalleDiario || []} />}
+        {/* ========================================================================= */}
+        {/* STOCK CRÍTICO DESPLEGABLE (ACORDEÓN) */}
+        {/* ========================================================================= */}
+        <div className="bg-white rounded-[2rem] border border-gray-200 shadow-sm overflow-hidden">
+          <button 
+            onClick={() => setStockDesplegado(!stockDesplegado)}
+            className="w-full p-6 flex items-center justify-between bg-white hover:bg-gray-50 transition-colors"
+          >
+            <div className="flex items-center gap-3">
+              <div className={`p-3 rounded-xl ${alertas.length > 0 ? 'bg-orange-50 text-orange-500' : 'bg-emerald-50 text-emerald-500'}`}>
+                {alertas.length > 0 ? <AlertTriangle size={24} /> : <CheckCircle size={24} />}
+              </div>
+              <div className="text-left">
+                <h3 className="text-xl font-black text-gray-900 tracking-tight">Alertas de Stock Crítico</h3>
+                <p className="text-sm font-medium text-gray-500">
+                  {alertas.length > 0 ? `Tienes ${alertas.length} insumos por debajo del mínimo` : 'Tu almacén está en niveles óptimos'}
+                </p>
+              </div>
             </div>
-          </div>
-
-          <div className="bg-white rounded-[2.5rem] border border-gray-100 shadow-sm p-8 flex flex-col">
-            <h3 className="text-xl font-black text-gray-900 tracking-tight mb-6 flex items-center gap-3">
-              <AlertTriangle className={alertas.length > 0 ? "text-orange-500" : "text-gray-400"} size={26} />
-              Stock Crítico
-            </h3>
+            <div className={`p-2 rounded-full transition-transform duration-300 ${stockDesplegado ? 'rotate-180 bg-gray-100' : 'bg-gray-50'}`}>
+              <ChevronDown className="text-gray-500" size={24} />
+            </div>
+          </button>
+          
+          <div className={`transition-all duration-500 ease-in-out ${stockDesplegado ? 'max-h-[500px] border-t border-gray-100 opacity-100' : 'max-h-0 opacity-0'} overflow-hidden`}>
             {loading ? (
-              <p className="text-center text-gray-400 font-medium mt-10">Evaluando almacén...</p>
+              <div className="p-8 text-center text-gray-400 font-bold">Evaluando almacén...</div>
             ) : alertas.length === 0 ? (
-              <div className="flex-1 flex flex-col items-center justify-center text-gray-400 p-6 text-center bg-gray-50/50 rounded-3xl border border-dashed border-gray-200">
-                <div className="w-16 h-16 bg-white rounded-full flex items-center justify-center mb-4 shadow-sm"><ShoppingBag size={24} className="text-gray-300"/></div>
-                <p className="font-bold text-gray-500 text-lg">Todo en orden</p>
-                <p className="text-sm mt-1">Ningún insumo bajo el límite.</p>
+              <div className="p-8 text-center text-gray-500 font-medium bg-gray-50">
+                Todo en orden. No hay alertas que revisar.
               </div>
             ) : (
-              <div className="flex-1 overflow-y-auto pr-2 space-y-3 custom-scrollbar">
+              <div className="p-6 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 bg-gray-50/50 overflow-y-auto max-h-[400px]">
                 {alertas.map((a) => {
                   const critico = a.stockActual <= 0;
                   return (
-                    <div key={a.insumoId} className={`p-5 rounded-2xl border flex justify-between items-center transition-all hover:scale-[1.02] ${critico ? 'bg-red-50/50 border-red-100' : 'bg-orange-50/50 border-orange-100'}`}>
+                    <div key={a.insumoId} className={`p-5 rounded-2xl border bg-white flex justify-between items-center shadow-sm ${critico ? 'border-red-100' : 'border-orange-100'}`}>
                       <div>
-                        <span className={`font-black text-[15px] ${critico ? 'text-red-900' : 'text-orange-900'}`}>{a.nombre}</span>
-                        <p className="text-xs font-bold text-gray-500 mt-1 uppercase tracking-wider">Min: {a.stockMinimo} {a.unidadMedida}</p>
+                        <span className={`font-black text-base ${critico ? 'text-red-600' : 'text-orange-600'}`}>{a.nombre}</span>
+                        <p className="text-xs font-bold text-gray-400 mt-1 uppercase tracking-widest">Min: {a.stockMinimo} {a.unidadMedida}</p>
                       </div>
                       <div className="text-right">
-                        <span className={`text-xs font-black px-3 py-1.5 rounded-xl ${critico ? 'bg-red-100 text-red-700' : 'bg-orange-100 text-orange-700'}`}>
+                        <span className={`text-sm font-black px-3 py-1.5 rounded-xl ${critico ? 'bg-red-50 text-red-600' : 'bg-orange-50 text-orange-600'}`}>
                           {critico ? 'VACÍO' : `Quedan ${a.stockActual}`}
                         </span>
                       </div>
@@ -233,6 +313,97 @@ const descargarExcel = () => {
               </div>
             )}
           </div>
+        </div>
+
+        {/* ========================================================================= */}
+        {/* GRÁFICOS DARK Y TOP PRODUCTOS EN GRID 2x2 */}
+        {/* ========================================================================= */}
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 items-stretch">
+          
+          {/* 1. VENTAS DE LA SEMANA */}
+          <div className="bg-[#050505] rounded-[2rem] border border-gray-800/40 shadow-2xl p-8 flex flex-col h-[420px]">
+            <h3 className="text-white font-black text-xl tracking-wide mb-6">Ventas de la Semana</h3>
+            <div className="flex-1 w-full relative">
+              {loading ? <div className="absolute inset-0 flex items-center justify-center text-gray-500 font-medium">Cargando...</div> : <GraficoBarrasDark datos={dashboard?.detalleDiario || []} />}
+            </div>
+            <div className="flex justify-center items-center gap-2 mt-4 pt-4 border-t border-gray-800/40">
+              <div className="w-4 h-4 bg-[#FFC640] rounded-[3px]"></div>
+              <span className="text-sm text-gray-400 font-bold">Ventas Totales (S/)</span>
+            </div>
+          </div>
+
+          {/* 2. TENDENCIA DE PEDIDOS */}
+          <div className="bg-[#050505] rounded-[2rem] border border-gray-800/40 shadow-2xl p-8 flex flex-col h-[420px]">
+            <h3 className="text-white font-black text-xl tracking-wide mb-6">Tendencia de Pedidos</h3>
+            <div className="flex-1 w-full relative">
+              {loading ? <div className="absolute inset-0 flex items-center justify-center text-gray-500 font-medium">Cargando...</div> : <GraficoLineasDark datos={dashboard?.detalleDiario || []} />}
+            </div>
+            <div className="flex justify-center items-center gap-2 mt-4 pt-4 border-t border-gray-800/40">
+              <div className="w-4 h-4 rounded-full border-[3px] border-[#FFC640] bg-[#050505]"></div>
+              <span className="text-sm text-gray-400 font-bold">Cantidad de Pedidos</span>
+            </div>
+          </div>
+
+          {/* 3. VENTAS POR CATEGORÍA (BARRAS DE PROGRESO HORIZONTALES) */}
+          <div className="bg-[#050505] rounded-[2rem] border border-gray-800/40 shadow-2xl p-8 flex flex-col h-[420px]">
+            <h3 className="text-white font-black text-xl tracking-wide mb-6">Ventas por Categoría</h3>
+            
+            {loading ? (
+              <div className="flex-1 flex items-center justify-center text-gray-500 font-medium text-sm">Cargando métricas...</div>
+            ) : !dashboard?.ventasPorCategoria || dashboard.ventasPorCategoria.length === 0 ? (
+              <div className="flex-1 flex items-center justify-center text-gray-500 font-medium text-sm">Sin datos en este período.</div>
+            ) : (
+              <div className="flex-1 flex flex-col justify-center space-y-6 overflow-y-auto custom-scrollbar pr-2">
+                {dashboard.ventasPorCategoria.slice(0, 5).map((cat: any, i: number) => {
+                  const maxVal = Math.max(...dashboard.ventasPorCategoria.map((c:any) => c.ingresosTotales), 1);
+                  const pct = (cat.ingresosTotales / maxVal) * 100;
+                  
+                  return (
+                    <div key={i} className="w-full">
+                      <div className="flex justify-between text-sm font-bold mb-2">
+                        <span className="text-gray-300">{cat.categoria}</span>
+                        <span className="text-[#FFC640]">S/ {Number(cat.ingresosTotales).toFixed(2)}</span>
+                      </div>
+                      <div className="w-full bg-gray-800/50 rounded-full h-3.5 border border-gray-800/50 overflow-hidden">
+                        <div 
+                          className="bg-[#FFC640] h-full rounded-full transition-all duration-1000 ease-out" 
+                          style={{ width: `${pct}%`, boxShadow: '0 0 10px rgba(255,198,64,0.5)' }}
+                        ></div>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+          </div>
+
+          {/* 4. PRODUCTOS MÁS VENDIDOS */}
+          <div className="bg-[#050505] rounded-[2rem] border border-gray-800/40 shadow-2xl p-8 flex flex-col h-[420px] overflow-hidden">
+            <h3 className="text-white font-black text-xl tracking-wide mb-6">Productos Más Vendidos</h3>
+            
+            {loading ? (
+              <div className="flex-1 flex items-center justify-center text-gray-500 font-medium">Cargando métricas...</div>
+            ) : !dashboard?.productosMasVendidos || dashboard.productosMasVendidos.length === 0 ? (
+              <div className="flex-1 flex items-center justify-center text-gray-500 font-medium">Aún no hay ventas en este período.</div>
+            ) : (
+              <div className="flex-1 space-y-4 overflow-y-auto custom-scrollbar pr-2">
+                {dashboard.productosMasVendidos.map((prod: any, index: number) => (
+                  <div key={index} className="flex items-center justify-between group bg-gray-900/30 p-4 rounded-2xl border border-gray-800/50 hover:bg-gray-800/60 transition-colors">
+                    <div className="flex items-center gap-4">
+                      <div className={`w-8 h-8 rounded-full font-black text-sm flex items-center justify-center transition-colors ${index === 0 ? 'bg-[#FFC640] text-black shadow-[0_0_10px_rgba(255,198,64,0.3)]' : 'bg-gray-800 text-gray-400 group-hover:bg-gray-700'}`}>
+                        {index + 1}
+                      </div>
+                      <span className="text-sm font-bold text-gray-300 group-hover:text-white transition-colors">{prod.producto}</span>
+                    </div>
+                    <span className="text-[#FFC640] font-black text-sm bg-orange-900/30 px-3 py-1.5 rounded-xl border border-orange-500/20 shadow-inner">
+                      {prod.cantidadVendida} unid.
+                    </span>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+
         </div>
       </div>
     </AdminLayout>

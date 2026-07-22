@@ -1,7 +1,6 @@
 import { useEffect, useState, useCallback } from 'react';
 import { 
-  Search, Calendar, Receipt, UtensilsCrossed, 
-  Eye, X, Filter 
+  Search, Calendar, Receipt, X, Filter 
 } from 'lucide-react';
 import { getHistorialPedidos } from '@/api/pedidos';
 import type { PedidoActivo } from '@/types';
@@ -151,7 +150,7 @@ export default function HistorialPedidosPage() {
             <Search size={18} className="text-gray-400" />
             <input 
               type="text" 
-              placeholder="Buscar mesa o número de orden..." 
+              placeholder="Buscar mesa o número de Ticket..." 
               value={busqueda} 
               onChange={(e) => setBusqueda(e.target.value)} 
               className="bg-transparent text-gray-900 text-sm font-semibold outline-none w-full placeholder-gray-400" 
@@ -229,7 +228,7 @@ export default function HistorialPedidosPage() {
                         </span>
                       </td>
                       <td className="px-8 py-4 text-right">
-                        <button onClick={() => setPedidoSeleccionado(pedido)} className="text-gray-400 bg-white border border-gray-200 hover:border-blue-200 hover:text-blue-600 hover:bg-blue-50 px-4 py-2 rounded-xl text-xs font-bold transition-all duration-300 shadow-sm" title="Ver Detalles">
+                        <button onClick={() => setPedidoSeleccionado(pedido)} className="text-gray-800 bg-white border border-gray-200 hover:border-blue-200 hover:text-blue-600 hover:bg-blue-50 px-4 py-2 rounded-xl text-xs font-bold transition-all duration-300 shadow-sm" title="Ver Detalles">
                           Ver Ticket
                         </button>
                       </td>

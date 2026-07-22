@@ -126,7 +126,7 @@ export default function ConfiguracionPage() {
                   <div>
                     <p className="text-[11px] text-gray-400 uppercase font-bold tracking-widest mb-1">Plan Actual Contratado</p>
                     <p className="text-3xl font-black text-white tracking-tight">
-                      VERONICA <span className="text-transparent bg-clip-text bg-gradient-to-r from-purple-400 to-fuchsia-400">Enterprise</span>
+                      LA RUTA DEL SABOR <span className="text-transparent bg-clip-text bg-gradient-to-r from-purple-400 to-fuchsia-400">Enterprise</span>
                     </p>
                   </div>
                   

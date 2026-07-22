@@ -1,5 +1,5 @@
-import { useEffect, useState } from 'react';
-import { ChefHat, Save, Plus, Trash2, Box, ArrowLeft, CheckCircle, AlertTriangle, X } from 'lucide-react';
+import { useEffect, useState, useRef } from 'react';
+import { ChefHat, Save, Plus, Trash2, Box, CheckCircle, AlertTriangle, X, Search, ChevronDown } from 'lucide-react';
 import AdminLayout from '@/components/layouts/AdminLayout';
 import { getProductosAdmin } from '@/api/catalogo';
 import { getInsumos, getRecetaProducto, guardarReceta } from '@/api/inventario';
@@ -23,13 +23,20 @@ export default function RecetasPage() {
   const [loading, setLoading] = useState(false);
   const [toast, setToast] = useState<{ visible: boolean; type: 'success' | 'error'; message: string }>({ visible: false, type: 'success', message: '' });
 
+  // 🔥 NUEVOS ESTADOS PARA EL SELECTOR PERSONALIZADO DE INSUMOS
+  const [isInsumoDropdownOpen, setIsInsumoDropdownOpen] = useState(false);
+  const [busquedaInsumo, setBusquedaInsumo] = useState('');
+  const [insumoSeleccionadoId, setInsumoSeleccionadoId] = useState<string>('');
+  const insumoDropdownRef = useRef<HTMLDivElement>(null);
+
+  const { sedeSeleccionadaId } = useAuthStore();
+
   const showToast = (message: string, type: 'success' | 'error' = 'success') => {
     setToast({ visible: true, type, message });
     setTimeout(() => setToast(prev => ({ ...prev, visible: false })), 5000);
   };
 
-  const { sedeSeleccionadaId } = useAuthStore();
-
+  // Cargar productos e insumos
   useEffect(() => {
     Promise.all([getProductosAdmin(), getInsumos(sedeSeleccionadaId || undefined)]).then(([p, i]) => {
       setProductos(p.filter(x => x.estadoRegistro));
@@ -37,9 +44,24 @@ export default function RecetasPage() {
     });
   }, [sedeSeleccionadaId]);
 
+  // Cerrar el selector personalizado si se hace clic fuera
+  useEffect(() => {
+    function handleClickOutside(event: MouseEvent) {
+      if (insumoDropdownRef.current && !insumoDropdownRef.current.contains(event.target as Node)) {
+        setIsInsumoDropdownOpen(false);
+      }
+    }
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, []);
+
   const seleccionarProducto = async (prod: Producto) => {
     setProductoSel(prod);
     setLoading(true);
+    // Limpiamos el buscador temporal
+    setInsumoSeleccionadoId('');
+    setBusquedaInsumo('');
+    
     try {
       const data = await getRecetaProducto(prod.id);
       
@@ -49,7 +71,6 @@ export default function RecetasPage() {
 
         const ins = insumos.find(i => i.id === idInsumoReal);
         
-        // 🔥 CORRECCIÓN: Leemos el costo verificando los dos posibles nombres que envía Java
         const costoReal = Number((ins as any)?.costo) || Number(ins?.costoUnitario) || 0;
         
         return { 
@@ -76,8 +97,8 @@ export default function RecetasPage() {
     if (receta.find(r => r.insumoId === insumoId)) return showToast('Este insumo ya está en la receta', 'error');
     
     const ins = insumos.find(i => i.id === insumoId);
-    
-    // 🔥 CORRECCIÓN: Leemos el costo correctamente al añadir un insumo nuevo a la lista
+    if(!ins) return;
+
     const costoReal = Number((ins as any)?.costo) || Number(ins?.costoUnitario) || 0;
     
     setReceta([...receta, { 
@@ -112,9 +133,14 @@ export default function RecetasPage() {
 
   const costoReceta = receta.reduce((s, r) => s + (r.cantidadUsada * (r.costo || 0)), 0);
 
+  // Filtrado de insumos para el buscador del dropdown
+  const insumosFiltradosDropdown = insumos.filter(i => 
+    i.nombre.toLowerCase().includes(busquedaInsumo.toLowerCase())
+  );
+
   return (
     <AdminLayout>
-      <div className="max-w-[1400px] mx-auto space-y-8">
+      <div className="max-w-[1400px] mx-auto space-y-8 pb-10">
         
         <div className="bg-[#0a0f1c] rounded-[2.5rem] p-8 md:p-10 shadow-2xl border border-gray-800 flex justify-between items-center relative overflow-hidden">
           <div className="absolute top-0 right-0 w-[400px] h-[400px] bg-gradient-to-bl from-orange-500/20 to-transparent rounded-full blur-[80px] -translate-y-1/2 translate-x-1/4 pointer-events-none"></div>
@@ -178,15 +204,69 @@ export default function RecetasPage() {
                 </div>
 
                 <div className="p-8 flex-1 overflow-y-auto">
+                  
+                  {/* 🔥 NUEVO SELECTOR CON BUSCADOR INTEGRADO */}
                   <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3 bg-gray-50 p-3 rounded-2xl border border-gray-100 mb-8">
-                    <select id="insumoSelect" className="flex-1 px-4 py-3 bg-white border border-gray-200 rounded-xl text-sm font-bold text-gray-700 focus:ring-2 focus:ring-orange-500 outline-none transition-all" defaultValue="">
-                      <option value="" disabled>Buscar insumo en almacén...</option>
-                      {insumos.map(i => <option key={i.id} value={i.id}>{i.nombre} ({i.unidadMedida})</option>)}
-                    </select>
-                    <button onClick={() => { 
-                      const select = document.getElementById('insumoSelect') as HTMLSelectElement;
-                      agregarInsumo(parseInt(select.value)); select.value = ""; 
-                    }} className="bg-slate-900 hover:bg-slate-800 text-white font-bold py-3 px-6 rounded-xl flex items-center justify-center gap-2 transition-colors">
+                    
+                    <div className="relative flex-1" ref={insumoDropdownRef}>
+                      <div 
+                        onClick={() => setIsInsumoDropdownOpen(!isInsumoDropdownOpen)}
+                        className={`w-full px-4 py-3.5 bg-white border rounded-xl transition-all font-semibold text-sm flex justify-between items-center cursor-pointer select-none ${isInsumoDropdownOpen ? 'border-orange-500 ring-2 ring-orange-500/20' : 'border-gray-200 hover:border-gray-300'}`}
+                      >
+                        <span className={insumoSeleccionadoId ? "text-gray-900 font-bold" : "text-gray-400"}>
+                          {insumoSeleccionadoId ? insumos.find(i => i.id.toString() === insumoSeleccionadoId)?.nombre : "Buscar insumo en almacén..."}
+                        </span>
+                        <ChevronDown size={18} className={`text-gray-400 transition-transform duration-300 ${isInsumoDropdownOpen ? 'rotate-180 text-orange-500' : ''}`} />
+                      </div>
+
+                      {isInsumoDropdownOpen && (
+                        <div className="absolute z-50 w-full mt-2 bg-white border border-gray-100 rounded-xl shadow-xl overflow-hidden animate-in fade-in slide-in-from-top-2">
+                          <div className="p-3 border-b border-gray-100 bg-gray-50/50 flex items-center gap-2">
+                            <Search size={16} className="text-gray-400 shrink-0" />
+                            <input 
+                              type="text" 
+                              autoFocus
+                              placeholder="Escribe para filtrar insumos..." 
+                              value={busquedaInsumo}
+                              onChange={(e) => setBusquedaInsumo(e.target.value)}
+                              className="bg-transparent text-sm outline-none w-full font-bold text-gray-700 placeholder-gray-400"
+                            />
+                          </div>
+                          <ul className="max-h-56 overflow-y-auto p-1 custom-scrollbar">
+                            {insumosFiltradosDropdown.length > 0 ? (
+                              insumosFiltradosDropdown.map(i => (
+                                <li 
+                                  key={i.id}
+                                  onClick={() => {
+                                    setInsumoSeleccionadoId(i.id.toString());
+                                    setIsInsumoDropdownOpen(false);
+                                    setBusquedaInsumo('');
+                                  }}
+                                  className={`px-4 py-3 rounded-lg text-sm font-bold cursor-pointer transition-colors flex justify-between items-center ${insumoSeleccionadoId === i.id.toString() ? 'bg-orange-50 text-orange-600' : 'text-gray-600 hover:bg-gray-50 hover:text-gray-900'}`}
+                                >
+                                  <span>{i.nombre}</span>
+                                  <span className="text-[10px] bg-gray-200 text-gray-600 px-2 py-0.5 rounded font-black uppercase tracking-widest">{i.unidadMedida}</span>
+                                </li>
+                              ))
+                            ) : (
+                              <li className="px-4 py-5 text-center text-sm text-gray-400 font-medium">No se encontraron insumos</li>
+                            )}
+                          </ul>
+                        </div>
+                      )}
+                    </div>
+
+                    <button 
+                      onClick={() => { 
+                        if (insumoSeleccionadoId) {
+                          agregarInsumo(parseInt(insumoSeleccionadoId)); 
+                          setInsumoSeleccionadoId(''); // Reseteamos después de agregar
+                        } else {
+                          showToast('Selecciona un insumo de la lista primero', 'error');
+                        }
+                      }} 
+                      className="bg-gradient-to-r from-orange-500 to-amber-500 hover:from-orange-400 hover:to-amber-400 text-white font-black font-bold py-3.5 px-6 rounded-xl flex items-center justify-center gap-2 transition-colors shrink-0"
+                    >
                       <Plus size={18} /> Añadir
                     </button>
                   </div>
@@ -211,8 +291,9 @@ export default function RecetasPage() {
                           />
                           <span className="text-[10px] font-black text-gray-500 uppercase tracking-widest px-2 border-l border-gray-200">{r.unidad}</span>
                         </div>
-                        <button onClick={() => quitarInsumo(r.insumoId)} className="p-3 text-red-400 hover:text-red-600 hover:bg-red-50 rounded-xl transition-colors ml-2">
-                          <Trash2 size={20}/>
+                        {/* 🔥 BOTÓN DE ELIMINAR CON ESTILO MINIMALISTA */}
+                        <button onClick={() => quitarInsumo(r.insumoId)} className="text-[#C1440E] hover:scale-110 transition-transform ml-4" title="Quitar Insumo">
+                          <Trash2 size={20} strokeWidth={2}/>
                         </button>
                       </div>
                     ))}

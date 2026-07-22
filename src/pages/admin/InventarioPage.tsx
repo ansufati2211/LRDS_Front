@@ -1,15 +1,58 @@
-import { useEffect, useState, useCallback } from 'react';
-import { Search, Plus, Edit2, Trash2, AlertTriangle, Box, RotateCcw, X, CheckCircle } from 'lucide-react';
+import { useEffect, useState, useCallback, useRef } from 'react';
+import { Search, Plus, Edit2, Trash2, AlertTriangle, Box, RotateCcw, X, CheckCircle, ChevronDown } from 'lucide-react';
 import { getInsumos, crearInsumo, actualizarInsumo, eliminarInsumo, activarInsumo } from '@/api/inventario';
 import type { Insumo, InsumoRequestDTO } from '@/api/inventario';
 import { useAuthStore } from '@/store/authStore';
 import AdminLayout from '@/components/layouts/AdminLayout';
 import { sileo } from 'sileo';
 
+function ModalConfirmacion({ isOpen, title, message, onClose, onConfirm }: { isOpen: boolean; title: string; message: string; onClose: () => void; onConfirm: () => void }) {
+  if (!isOpen) return null;
+  return (
+    <div className="fixed inset-0 bg-gray-900/60 backdrop-blur-sm flex items-center justify-center z-[9999] p-4 animate-in fade-in duration-200">
+      <div className="bg-white rounded-[2rem] shadow-2xl w-full max-w-md overflow-hidden animate-in zoom-in-95 duration-200 p-8 text-center space-y-6">
+        <div className="w-16 h-16 bg-orange-50 text-orange-500 rounded-full flex items-center justify-center mx-auto shadow-inner">
+          <AlertTriangle size={32} />
+        </div>
+        <div>
+          <h3 className="text-xl font-black text-gray-900 tracking-tight">{title}</h3>
+          <p className="text-gray-500 text-sm font-medium mt-2">{message}</p>
+        </div>
+        <div className="flex gap-3 pt-2">
+          <button type="button" onClick={onClose} className="flex-1 px-5 py-3.5 border border-gray-200 text-gray-600 rounded-xl font-bold hover:bg-gray-50 transition-all">Cancelar</button>
+          <button type="button" onClick={() => { onConfirm(); onClose(); }} className="flex-1 px-4 py-3 bg-gradient-to-r from-orange-500 to-amber-500 hover:from-orange-400 hover:to-amber-400 text-white font-black rounded-xl  disabled:opacity-50 flex justify-center items-center">Sí, confirmar</button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 function ModalInsumo({ insumo, onClose, onGuardar }: { insumo?: Insumo | null; onClose: () => void; onGuardar: () => void; }) {
   const [nombre, setNombre] = useState(insumo?.nombre || '');
   const [unidadMedida, setUnidadMedida] = useState(insumo?.unidadMedida || 'KG');
   const [loading, setLoading] = useState(false);
+  const [isUnidadOpen, setIsUnidadOpen] = useState(false);
+  const unidadRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    function handleClickOutside(event: MouseEvent) {
+      if (unidadRef.current && !unidadRef.current.contains(event.target as Node)) {
+        setIsUnidadOpen(false);
+      }
+    }
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, []);
+
+  const unidades = [
+    { value: 'KG', label: 'KG (Kilogramos)' },
+    { value: 'GR', label: 'GR (Gramos)' },
+    { value: 'LT', label: 'LT (Litros)' },
+    { value: 'ML', label: 'ML (Mililitros)' },
+    { value: 'UND', label: 'UND (Unidades)' },
+    { value: 'PAQ', label: 'PAQ (Paquetes)' },
+    { value: 'LAT', label: 'LAT (Latas)' }
+  ];
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -36,16 +79,22 @@ function ModalInsumo({ insumo, onClose, onGuardar }: { insumo?: Insumo | null; o
   };
 
   return (
-    <div className="fixed inset-0 bg-gray-900/40 backdrop-blur-sm flex items-center justify-center z-50 p-4 animate-in fade-in duration-200">
-      <div className="bg-white rounded-[2rem] shadow-2xl w-full max-w-md overflow-hidden animate-in zoom-in-95 duration-200">
-        <div className="px-8 py-6 border-b border-gray-100 flex items-center justify-between bg-gray-50/50">
+    <div className="fixed inset-0 bg-gray-900/60 backdrop-blur-sm flex items-center justify-center z-[9999] p-4 pt-20 animate-in fade-in duration-200">
+      <div className="bg-white rounded-[2rem] shadow-2xl w-full max-w-md max-h-[85vh] flex flex-col overflow-hidden animate-in zoom-in-95 duration-200">
+        
+        {/* Cabecera Fija */}
+        <div className="px-8 py-6 border-b border-gray-100 flex items-center justify-between bg-gray-50/50 shrink-0">
           <h2 className="text-gray-900 font-black text-xl tracking-tight flex items-center gap-2">
             <Box className="text-orange-500" size={20} />
             {insumo ? 'Editar Insumo' : 'Nuevo Insumo'}
           </h2>
+          <button type="button" onClick={onClose} className="text-gray-400 hover:text-gray-900 hover:bg-gray-100 p-2 rounded-full transition-all active:scale-95">
+            <X size={20} />
+          </button>
         </div>
         
-        <form onSubmit={handleSubmit} className="p-8 space-y-6">
+        {/* Formulario con Scroll Oculto */}
+        <form onSubmit={handleSubmit} className="p-8 space-y-5 overflow-y-auto [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none]">
           <div>
             <label className="block text-[11px] font-bold text-gray-400 uppercase tracking-widest mb-2">Nombre del Insumo / Producto</label>
             <input 
@@ -54,27 +103,52 @@ function ModalInsumo({ insumo, onClose, onGuardar }: { insumo?: Insumo | null; o
               placeholder="Ej. Tomate, Coca Cola, etc." 
             />
           </div>
-          <div>
-            <label className="block text-[11px] font-bold text-gray-400 uppercase tracking-widest mb-2">Unidad de Medida (KG, LT, UND)</label>
-            <input 
-              value={unidadMedida} onChange={e => setUnidadMedida(e.target.value.toUpperCase())} 
-              className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-xl text-gray-900 font-bold focus:ring-2 focus:ring-orange-500 focus:bg-white outline-none transition-all" 
-              placeholder="KG"
-            />
+
+<div className="relative" ref={unidadRef}>
+            <label className="block text-[11px] font-bold text-gray-400 uppercase tracking-widest mb-2">Unidad de Medida</label>
+            <div 
+              onClick={() => setIsUnidadOpen(!isUnidadOpen)}
+              className={`w-full px-4 py-3 bg-gray-50 border rounded-xl transition-all font-bold text-gray-900 flex justify-between items-center cursor-pointer select-none ${isUnidadOpen ? 'border-orange-500 ring-2 ring-orange-500/20 bg-white' : 'border-gray-200 hover:border-gray-300'}`}
+            >
+              <span>{unidades.find(u => u.value === unidadMedida)?.label || 'Seleccionar...'}</span>
+              <ChevronDown size={18} className={`text-gray-400 transition-transform duration-300 ${isUnidadOpen ? 'rotate-180 text-orange-500' : ''}`} />
+            </div>
+
+            {isUnidadOpen && (
+              <div className="absolute z-50 w-full mt-2 bg-white border border-gray-100 rounded-xl shadow-xl overflow-hidden animate-in fade-in slide-in-from-top-2">
+                <ul className="max-h-48 overflow-y-auto p-1 custom-scrollbar">
+                  {unidades.map(u => (
+                    <li 
+                      key={u.value}
+                      onClick={() => {
+                        setUnidadMedida(u.value);
+                        setIsUnidadOpen(false);
+                      }}
+                      className={`px-4 py-3 rounded-lg text-sm font-bold cursor-pointer transition-colors ${unidadMedida === u.value ? 'bg-orange-50 text-orange-600' : 'text-gray-600 hover:bg-gray-50 hover:text-gray-900'}`}
+                    >
+                      {u.label}
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            )}
           </div>
+
           <div className="bg-orange-50 p-4 rounded-xl border border-orange-100 flex gap-3">
             <AlertTriangle className="text-orange-500 shrink-0" size={20} />
             <p className="text-xs text-orange-800 font-medium">
               Nota: El stock físico y costos se gestionan en <strong>Kardex & Movimientos</strong>.
             </p>
           </div>
+
           <div className="pt-4 flex gap-3">
             <button type="button" onClick={onClose} className="flex-1 px-5 py-3.5 border border-gray-200 text-gray-600 rounded-xl font-bold hover:bg-gray-50 transition-all">Cancelar</button>
-            <button type="submit" disabled={loading} className="flex-1 px-5 py-3.5 bg-gradient-to-r from-orange-500 to-amber-500 hover:from-orange-600 hover:to-amber-600 text-white rounded-xl font-bold transition-all shadow-lg shadow-orange-500/30 disabled:opacity-50">
+            <button type="submit" disabled={loading} className="flex-1 px-5 py-3.5 bg-gradient-to-r from-orange-500 to-amber-500 hover:from-orange-400 hover:to-amber-400 text-white font-black rounded-xl disabled:opacity-50 flex justify-center items-center">
               {loading ? 'Guardando...' : 'Guardar Insumo'}
             </button>
           </div>
         </form>
+
       </div>
     </div>
   );
@@ -83,7 +157,7 @@ function ModalInsumo({ insumo, onClose, onGuardar }: { insumo?: Insumo | null; o
 export default function InventarioPage() {
   const { user, sedeSeleccionadaId } = useAuthStore();
   const isAdmin = user?.rol === 'ROLE_SUPER_ADMIN' || user?.rol === 'ROLE_ADMIN_EMPRESA';
-
+  const [confirmModal, setConfirmModal] = useState<{ isOpen: boolean; title: string; message: string; action: () => void }>({ isOpen: false, title: '', message: '', action: () => {} });
   const [insumos, setInsumos] = useState<Insumo[]>([]);
   const [busqueda, setBusqueda] = useState('');
   const [loading, setLoading] = useState(true);
@@ -104,30 +178,40 @@ export default function InventarioPage() {
 
   useEffect(() => { cargarDatos(); }, [cargarDatos]);
 
-  const handleEliminar = async (id: number) => {
-    if(!window.confirm('¿Estás seguro de inhabilitar este insumo?')) return;
-    try { 
-      await eliminarInsumo(id); 
-      sileo.success({ title: 'Insumo enviado a inhabilitados' });
-      cargarDatos(); 
-    } catch (e: any) { 
-      // 🔥 FIX: Mostrar el error real de la Base de Datos
-      const errorReal = e.response?.data?.message || e.response?.data?.error || 'Error al inhabilitar';
-      sileo.error({ title: 'Fallo Servidor', description: errorReal }); 
-    }
+  const handleEliminar = (id: number) => {
+    setConfirmModal({
+      isOpen: true,
+      title: '¿Inhabilitar Insumo?',
+      message: '¿Estás seguro de inhabilitar este insumo del almacén?',
+      action: async () => {
+        try { 
+          await eliminarInsumo(id); 
+          sileo.success({ title: 'Insumo enviado a inhabilitados' });
+          cargarDatos(); 
+        } catch (e: any) { 
+          const errorReal = e.response?.data?.message || e.response?.data?.error || 'Error al inhabilitar';
+          sileo.error({ title: 'Fallo Servidor', description: errorReal }); 
+        }
+      }
+    });
   };
 
-  const handleActivar = async (id: number) => {
-    if(!window.confirm('¿Deseas restaurar este insumo al almacén?')) return;
-    try { 
-      await activarInsumo(id); 
-      sileo.success({ title: 'Insumo restaurado correctamente' });
-      cargarDatos(); 
-    } catch (e: any) { 
-      // 🔥 FIX: Mostrar el error real de la Base de Datos
-      const errorReal = e.response?.data?.message || e.response?.data?.error || 'Error al restaurar';
-      sileo.error({ title: 'Fallo Servidor', description: errorReal }); 
-    }
+  const handleActivar = (id: number) => {
+    setConfirmModal({
+      isOpen: true,
+      title: '¿Restaurar Insumo?',
+      message: '¿Deseas restaurar este insumo al almacén?',
+      action: async () => {
+        try { 
+          await activarInsumo(id); 
+          sileo.success({ title: 'Insumo restaurado correctamente' });
+          cargarDatos(); 
+        } catch (e: any) { 
+          const errorReal = e.response?.data?.message || e.response?.data?.error || 'Error al restaurar';
+          sileo.error({ title: 'Fallo Servidor', description: errorReal }); 
+        }
+      }
+    });
   };
 
   const filtrados = insumos.filter(i => 
@@ -182,7 +266,7 @@ export default function InventarioPage() {
             {isAdmin && tab === 'ACTIVOS' && (
               <button 
                 onClick={() => setModal({ isOpen: true, data: null })} 
-                className="w-full sm:w-auto bg-gradient-to-r from-orange-500 to-amber-500 hover:from-orange-600 hover:to-amber-600 text-white shadow-lg shadow-orange-500/30 px-6 py-3 rounded-xl font-bold flex justify-center items-center gap-2 transition-all active:scale-95 whitespace-nowrap"
+                className="w-full sm:w-auto bg-gradient-to-r from-orange-500 to-amber-500 hover:from-orange-400 hover:to-amber-400 text-white font-black px-6 py-3 rounded-xl font-bold flex justify-center items-center gap-2 transition-all active:scale-95 whitespace-nowrap"
               >
                 <Plus size={18} /> Nuevo Insumo
               </button>
@@ -264,26 +348,26 @@ export default function InventarioPage() {
                           )}
                         </td>
                         {/* 🔥 MODO LECTURA: Oculta acciones de insumo al gerente */}
-                        {isAdmin && (
-                          <td className="px-8 py-5 text-right">
-                            {tab === 'ACTIVOS' ? (
-                              <div className="flex justify-end gap-3">
-                                <button onClick={() => setModal({ isOpen: true, data: i })} className="w-10 h-10 bg-white border border-gray-200 rounded-[12px] flex items-center justify-center text-blue-600 hover:border-blue-300 hover:shadow-md transition-all duration-200" title="Editar">
-                                  <Edit2 size={18} strokeWidth={2.5} />
-                                </button>
-                                <button onClick={() => handleEliminar(i.id)} className="w-10 h-10 bg-white border border-gray-200 rounded-[12px] flex items-center justify-center text-red-600 hover:border-red-300 hover:shadow-md transition-all duration-200" title="Ocultar">
-                                  <Trash2 size={18} strokeWidth={2.5} />
-                                </button>
-                              </div>
-                            ) : (
-                              <div className="flex justify-end">
-                                <button onClick={() => handleActivar(i.id)} className="px-4 h-10 bg-emerald-50 border border-emerald-200 rounded-[12px] flex items-center justify-center text-emerald-700 hover:border-emerald-400 hover:bg-emerald-100 hover:shadow-md transition-all duration-200 font-bold text-xs gap-2">
-                                  <RotateCcw size={16} strokeWidth={2.5} /> Restaurar
-                                </button>
-                              </div>
-                            )}
-                          </td>
-                        )}
+{isAdmin && (
+                        <td className="px-8 py-5 text-right">
+                          {tab === 'ACTIVOS' ? (
+                            <div className="flex justify-end gap-4">
+                              <button onClick={() => setModal({ isOpen: true, data: i })} className="text-[#FFC640] hover:scale-110 transition-transform" title="Editar">
+                                <Edit2 size={18} strokeWidth={2} />
+                              </button>
+                              <button onClick={() => handleEliminar(i.id)} className="text-[#C1440E] hover:scale-110 transition-transform" title="Ocultar">
+                                <Trash2 size={18} strokeWidth={2} />
+                              </button>
+                            </div>
+                          ) : (
+                            <div className="flex justify-end">
+                              <button onClick={() => handleActivar(i.id)} className="text-emerald-500 hover:scale-110 transition-transform flex items-center gap-1.5 font-bold text-xs" title="Restaurar Insumo">
+                                <RotateCcw size={18} strokeWidth={2} /> Restaurar
+                              </button>
+                            </div>
+                          )}
+                        </td>
+                      )}
                       </tr>
                     );
                   })}
@@ -299,6 +383,16 @@ export default function InventarioPage() {
           insumo={modal.data} 
           onClose={() => setModal({ isOpen: false })} 
           onGuardar={() => { setModal({ isOpen: false }); cargarDatos(); }} 
+        />
+      )}
+
+      {confirmModal.isOpen && (
+        <ModalConfirmacion 
+          isOpen={confirmModal.isOpen}
+          title={confirmModal.title}
+          message={confirmModal.message}
+          onClose={() => setConfirmModal(prev => ({ ...prev, isOpen: false }))}
+          onConfirm={confirmModal.action}
         />
       )}
     </AdminLayout>
