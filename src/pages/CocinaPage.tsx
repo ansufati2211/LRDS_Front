@@ -1,9 +1,9 @@
 import { useEffect, useState, useCallback, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { 
-  ChefHat, LogOut, CheckCircle, AlertTriangle, 
-  Flame, Search, Moon, Sun, UtensilsCrossed, 
-  RefreshCcw, X, Ban, Undo2, LayoutGrid, List, Info, Filter, History
+ LogOut, AlertTriangle, 
+ Search, Moon, Sun, UtensilsCrossed, 
+  RefreshCcw, X, Ban, Undo2, Info, Filter, Clock
 } from 'lucide-react';
 import { 
   getPedidosCocina, marcarPreparando, marcarListo, deshacerPedido,
@@ -22,9 +22,9 @@ const THEMES = {
     itemBg: 'bg-white border-gray-200', activeTab: 'bg-gray-900 text-white shadow-md'
   },
   dark: {
-    appBg: 'bg-[#0f172a]', modalBg: 'bg-[#1e293b]', textMain: 'text-white', textMuted: 'text-gray-400',
-    border: 'border-gray-700', borderDark: 'border-gray-800', btnGhost: 'bg-[#1e293b] hover:bg-[#334155] text-white border-gray-700 shadow-sm',
-    itemBg: 'bg-[#0f172a] border-gray-700', activeTab: 'bg-white text-black shadow-md shadow-white/10'
+    appBg: 'bg-[#050505]', modalBg: 'bg-[#111111]', textMain: 'text-white', textMuted: 'text-gray-400',
+    border: 'border-gray-800', borderDark: 'border-gray-700', btnGhost: 'bg-[#1a1a1a] hover:bg-[#222] text-white border-gray-800 shadow-sm',
+    itemBg: 'bg-[#141414] border-gray-800', activeTab: 'bg-white text-black shadow-md shadow-white/10'
   }
 };
 type ThemeKey = 'light' | 'dark';
@@ -148,7 +148,7 @@ function DisponibilidadModal({ isOpen, onClose, porciones, recargar, theme }: an
             const isDefinitivo = p.estadoDisponibilidad === 'AGOTADO_SERVICIO';
 
             return (
-              <div key={p.productoId} className={`${c.itemBg} p-4 rounded-2xl border ${c.border} flex flex-col sm:flex-row justify-between items-center gap-4 shadow-sm ${isPausado || isDefinitivo ? 'opacity-70 grayscale' : ''}`}>
+              <div key={p.productoId} className={`${c.itemBg} p-4 rounded-2xl border flex flex-col sm:flex-row justify-between items-center gap-4 shadow-sm ${isPausado || isDefinitivo ? 'opacity-70 grayscale' : ''}`}>
                 <div className="w-full">
                   <p className={`${c.textMain} font-black`}>{p.nombreProducto}</p>
                   <p className="text-xs font-bold text-gray-500 mt-1">
@@ -185,92 +185,122 @@ function DisponibilidadModal({ isOpen, onClose, porciones, recargar, theme }: an
 }
 
 // ============================================================================
-// COMPONENTE: TICKET DE COCINA INDIVIDUAL
+// COMPONENTE: TICKET DE COCINA INDIVIDUAL (NUEVO DISEÑO KDS OSCURO)
 // ============================================================================
 function TicketPedido({ pedido, onPreparar, onListo, onVerReceta, procesando, theme }: { pedido: KdsPedido, onPreparar: (id: number) => void, onListo: (id: number) => void, onVerReceta: (id: number, nombre: string) => void, procesando: boolean, theme: ThemeKey }) {
-  const c = THEMES[theme];
+  const isDark = theme === 'dark';
   const esPreparando = pedido.estadoPedido === 'EN_PREPARACION';
   const min = Math.max(0, Math.floor(pedido.minutosTranscurridos)); 
   
-  let accentColor = ''; let bgHeader = ''; let textHeader = ''; let badgeText = '';
+  // 🔥 FIX: Tipado estricto explícito para evitar error "config is possibly undefined"
+  type EstadoTicket = 'NUEVO' | 'DEMORADO' | 'URGENTE' | 'EN_PROCESO';
+  let state: EstadoTicket = 'NUEVO';
+  
+  if (esPreparando) state = 'EN_PROCESO';
+  else if (min >= 20) state = 'URGENTE';
+  else if (min >= 10) state = 'DEMORADO';
 
-  if (esPreparando) {
-    accentColor = 'border-blue-400 shadow-[0_0_20px_rgba(59,130,246,0.15)] ring-2 ring-blue-400/20';
-    bgHeader = 'bg-gradient-to-r from-blue-600 to-blue-500'; textHeader = 'text-white'; badgeText = 'Cocinando...';
-  } else if (min >= 20) {
-    accentColor = 'border-red-500 shadow-[0_0_20px_rgba(239,68,68,0.2)] ring-2 ring-red-500/30 animate-pulse';
-    bgHeader = 'bg-gradient-to-r from-red-600 to-red-500'; textHeader = 'text-white'; badgeText = '¡Crítico!';
-  } else if (min >= 10) {
-    accentColor = 'border-amber-400 shadow-[0_0_15px_rgba(251,191,36,0.15)]';
-    bgHeader = 'bg-gradient-to-r from-amber-400 to-amber-500'; textHeader = 'text-black'; badgeText = 'Demorado';
-  } else {
-    accentColor = theme === 'dark' ? 'border-gray-700 shadow-xl' : 'border-gray-200 shadow-xl';
-    bgHeader = theme === 'dark' ? 'bg-gray-800' : 'bg-white border-b border-gray-100'; textHeader = theme === 'dark' ? 'text-white' : 'text-gray-900'; badgeText = 'A tiempo';
-  }
+  // Configuración de colores basada en el estado usando Record para asegurar que no falle TS
+  const configMap: Record<EstadoTicket, { colorBorder: string; colorText: string; badge: string; bgTime: string }> = {
+    URGENTE: {
+      colorBorder: 'border-red-600/80',
+      colorText: 'text-red-500',
+      badge: 'URGENTE',
+      bgTime: 'bg-red-900/30'
+    },
+    DEMORADO: {
+      colorBorder: 'border-amber-500/80',
+      colorText: 'text-amber-500',
+      badge: 'DEMORADO',
+      bgTime: 'bg-amber-900/20'
+    },
+    EN_PROCESO: {
+      colorBorder: 'border-orange-500/80',
+      colorText: 'text-orange-500',
+      badge: 'EN PROCESO',
+      bgTime: 'bg-orange-900/20'
+    },
+    NUEVO: {
+      colorBorder: 'border-[#FFC640]/70',
+      colorText: 'text-[#FFC640]',
+      badge: 'NUEVO',
+      bgTime: 'bg-[#FFC640]/10'
+    }
+  };
 
-  const bgCard = theme === 'dark' ? 'bg-[#1e293b]' : 'bg-gray-50/50';
-  const bgItem = theme === 'dark' ? 'bg-[#0f172a]' : 'bg-white';
-  const textItem = theme === 'dark' ? 'text-gray-100' : 'text-gray-800';
+  const config = configMap[state];
+
+  // Acción del botón (Siempre Amarillo como en la imagen)
+  const btnText = esPreparando ? '✓ Marcar Completado' : 'Empezar Preparación';
+  const btnAction = esPreparando ? () => onListo(pedido.pedidoId) : () => onPreparar(pedido.pedidoId);
 
   return (
-    <div className={`rounded-[24px] flex flex-col overflow-hidden transition-all duration-300 ${bgCard} border-2 ${accentColor}`}>
-      <div className={`px-5 py-4 flex justify-between items-center ${bgHeader} ${textHeader}`}>
+    <div className={`rounded-2xl border ${config.colorBorder} ${isDark ? 'bg-[#0a0a0a]' : 'bg-white shadow-xl'} p-5 flex flex-col relative transition-all duration-300`}>
+      
+      {/* Cabecera del Ticket */}
+      <div className="flex justify-between items-start mb-5">
         <div>
-          <h3 className="font-black text-2xl leading-none tracking-tight">{pedido.mesa || pedido.tipoConsumo}</h3>
-          <p className={`text-xs font-black uppercase tracking-widest mt-1.5 ${textHeader === 'text-white' ? 'text-white/80' : 'text-black/60'}`}>#{pedido.numeroOrden || pedido.pedidoId}</p>
+          <h3 className={`font-black text-xl leading-none ${isDark ? 'text-white' : 'text-gray-900'}`}>
+            ORD-{pedido.numeroOrden?.toString().padStart(3, '0') || pedido.pedidoId}
+          </h3>
+          <p className={`text-sm mt-1.5 font-medium ${isDark ? 'text-gray-400' : 'text-gray-500'}`}>
+            {pedido.mesa || pedido.tipoConsumo}
+          </p>
         </div>
-        <div className="text-right flex flex-col items-end">
-          <div className="flex items-baseline gap-0.5">
-            <span className="font-black text-3xl tabular-nums leading-none">{min}</span>
-            <span className="text-lg font-bold">m</span>
-          </div>
-          <div className={`mt-1 text-[9px] font-black uppercase tracking-widest px-2 py-0.5 rounded-full ${textHeader === 'text-white' ? 'bg-white/20' : 'bg-black/10'}`}>{badgeText}</div>
-        </div>
+        <span className={`px-3 py-1 rounded-full border ${config.colorBorder} ${config.colorText} text-[10px] font-black tracking-wider uppercase`}>
+          {config.badge}
+        </span>
       </div>
 
-      <div className="flex-1 p-3 space-y-2 overflow-y-auto custom-scrollbar min-h-[160px]">
-        {pedido.items.map((item) => (
-          <div key={item.detalleId} className={`${bgItem} rounded-xl p-3 flex gap-3 items-start shadow-sm border ${theme === 'dark' ? 'border-gray-800' : 'border-gray-100'} group`}>
-            <div className={`w-10 h-10 rounded-lg flex items-center justify-center shrink-0 font-black text-lg ${theme === 'dark' ? 'bg-white text-black' : 'bg-gray-900 text-white shadow-md'}`}>
-              {item.cantidad}
-            </div>
-            <div className="flex-1 pt-0.5">
+      {/* Caja de Tiempo */}
+      <div className={`w-full rounded-xl ${config.bgTime} p-3.5 flex items-center justify-between mb-5`}>
+        <div className={`flex items-center gap-2.5 ${config.colorText}`}>
+          <Clock size={18} strokeWidth={2.5} />
+          <span className="font-bold text-base">{min} min</span>
+        </div>
+        {(state === 'URGENTE' || state === 'DEMORADO') && <AlertTriangle size={18} strokeWidth={2.5} className={config.colorText} />}
+      </div>
+
+      {/* Lista de Items */}
+      <div className="flex-1 flex flex-col">
+        <p className={`text-[10px] font-bold uppercase tracking-widest mb-3 ${isDark ? 'text-gray-500' : 'text-gray-400'}`}>Items del Pedido</p>
+        <div className="space-y-2.5 overflow-y-auto custom-scrollbar flex-1 max-h-[180px] pr-1">
+          {pedido.items.map((item) => (
+            <div key={item.detalleId} className={`rounded-xl p-3.5 group relative ${isDark ? 'bg-[#141414]' : 'bg-gray-50 border border-gray-100'}`}>
               <div className="flex justify-between items-start">
-                <p className={`font-black text-base leading-tight ${item.estadoItem === 'CANCELADO' ? 'text-gray-400 line-through' : textItem}`}>{item.producto}</p>
-                
-                {/* 🔥 BOTÓN PARA VER RECETA */}
-                <button onClick={() => onVerReceta(item.productoId, item.producto)} className={`p-1.5 rounded-lg opacity-0 group-hover:opacity-100 transition-opacity ${c.btnGhost}`} title="Ver Receta">
-                  <Info size={16} className="text-blue-500" />
+                <p className={`font-bold text-[15px] ${item.estadoItem === 'CANCELADO' ? 'text-gray-500 line-through' : isDark ? 'text-gray-200' : 'text-gray-800'}`}>
+                  {item.cantidad}x {item.producto}
+                </p>
+                <button onClick={() => onVerReceta(item.productoId, item.producto)} className="opacity-0 group-hover:opacity-100 text-blue-500 hover:text-blue-400 transition-opacity p-1" title="Ver Receta">
+                  <Info size={18} strokeWidth={2.5} />
                 </button>
               </div>
-              
               {item.notasPreparacion && (
-                <div className="mt-2 inline-flex">
-                  <p className={`font-bold text-xs px-2.5 py-1.5 rounded-lg border ${theme === 'dark' ? 'bg-amber-500/10 text-amber-400 border-amber-500/20' : 'bg-amber-50 text-amber-700 border-amber-200'}`}>⚠️ {item.notasPreparacion}</p>
-                </div>
+                <p className={`text-xs mt-1.5 font-medium ${isDark ? 'text-gray-400' : 'text-gray-500'}`}>
+                  Nota: {item.notasPreparacion}
+                </p>
               )}
             </div>
-          </div>
-        ))}
-        {pedido.notasGenerales && (
-          <div className={`p-4 rounded-xl border mt-3 ${theme === 'dark' ? 'bg-red-500/10 border-red-500/30' : 'bg-red-50 border-red-200'}`}>
-            <p className={`font-black text-[10px] uppercase tracking-widest mb-1 ${theme === 'dark' ? 'text-red-400' : 'text-red-600'}`}>Nota General de la Orden:</p>
-            <p className={`${theme === 'dark' ? 'text-red-100' : 'text-red-900'} text-sm font-bold leading-snug`}>{pedido.notasGenerales}</p>
-          </div>
-        )}
+          ))}
+          {pedido.notasGenerales && (
+            <div className={`p-3.5 rounded-xl mt-2 ${isDark ? 'bg-red-500/10' : 'bg-red-50 border border-red-100'}`}>
+              <p className={`text-xs font-bold ${isDark ? 'text-red-400' : 'text-red-600'}`}>
+                General: {pedido.notasGenerales}
+              </p>
+            </div>
+          )}
+        </div>
       </div>
 
-      <div className={`p-4 border-t ${theme === 'dark' ? 'bg-gray-900 border-gray-800' : 'bg-white border-gray-200'}`}>
-        {!esPreparando ? (
-          <button onClick={() => onPreparar(pedido.pedidoId)} disabled={procesando} className="w-full bg-blue-500 hover:bg-blue-600 text-white font-black py-4 rounded-[14px] flex items-center justify-center gap-2 active:scale-95 transition-all shadow-lg shadow-blue-500/30 disabled:opacity-50 text-lg">
-            <Flame size={20} strokeWidth={2.5} /> Empezar Plato
-          </button>
-        ) : (
-          <button onClick={() => onListo(pedido.pedidoId)} disabled={procesando} className="w-full bg-emerald-500 hover:bg-emerald-600 text-white font-black py-4 rounded-[14px] flex items-center justify-center gap-2 active:scale-95 transition-all shadow-lg shadow-emerald-500/40 disabled:opacity-50 text-lg animate-pulse">
-            <CheckCircle size={22} strokeWidth={2.5} /> ¡Listo para Entregar!
-          </button>
-        )}
-      </div>
+      {/* Botón de Acción (Siempre Amarillo como en la imagen) */}
+      <button 
+        onClick={btnAction} 
+        disabled={procesando} 
+        className="w-full mt-5 bg-gradient-to-r from-orange-500 to-amber-500 hover:from-orange-400 hover:to-amber-400 text-white font-black font-bold py-3.5 rounded-xl flex items-center justify-center gap-2 active:scale-95 transition-all shadow-md disabled:opacity-50 text-[15px]"
+      >
+        {btnText}
+      </button>
+
     </div>
   );
 }
@@ -307,7 +337,6 @@ export default function CocinaPage() {
 
   const cargarDatos = useCallback(async () => {
     try {
-      // 🔥 OBTENEMOS EL HISTORIAL REAL A TRAVÉS DE getPedidosActivos GLOBALES
       const [dataPedidos, dataPorciones, dataGlobales] = await Promise.all([ 
         getPedidosCocina(), 
         getPorciones(),
@@ -321,7 +350,6 @@ export default function CocinaPage() {
           minutosTranscurridos: p.minutosTranscurridos < 0 ? 0 : p.minutosTranscurridos
         }));
 
-      // Mapeamos los datos globales (del Mozo) al formato KDS para rellenar el Historial
       const terminadosKds: KdsPedido[] = dataGlobales
         .filter((p: any) => p.estadoActual === 'LISTO' || p.estadoActual === 'ENTREGADO')
         .map((p: any) => ({
@@ -363,7 +391,6 @@ export default function CocinaPage() {
     return () => clearInterval(interval);
   }, []);
 
-// FIX APLICADO: URL corregida para eventos SSE
   const conectarSSE = useCallback(() => {
     const token = useAuthStore.getState().token;
     const es = new EventSource(`http://localhost:8080/api/kds/eventos?token=${token}`);
@@ -374,10 +401,11 @@ export default function CocinaPage() {
     
     es.onerror = () => {
       es.close();
-      setTimeout(conectarSSE, 5000); // Reconexión suave
+      setTimeout(conectarSSE, 5000);
     };
     return es;
   }, [cargarDatos]);
+  
   useEffect(() => {
     const es = conectarSSE();
     return () => es.close();
@@ -401,55 +429,66 @@ export default function CocinaPage() {
     catch (e: any) { sileo.error({ title: 'Error', description: e.message }); } finally { setProcesandoId(null); }
   };
 
-  const pedidosFiltrados = useMemo(() => {
+ const pedidosFiltrados = useMemo(() => {
     if (estacionFiltro === 'TODAS') return pedidosActivos;
-    return pedidosActivos.filter(p => p.items.some(i => i.categoriaNombre === estacionFiltro));
+    
+    return pedidosActivos
+      .map(pedido => ({
+        ...pedido,
+        items: pedido.items.filter(item => item.categoriaNombre === estacionFiltro)
+      }))
+      .filter(pedido => pedido.items.length > 0);
+      
   }, [pedidosActivos, estacionFiltro]);
 
   const consolidado = useMemo(() => {
     const mapa = new Map<string, { cantidad: number, preparacion: number }>();
     pedidosFiltrados.forEach(p => p.items.forEach(i => {
-      if (i.estadoItem !== 'CANCELADO' && (estacionFiltro === 'TODAS' || i.categoriaNombre === estacionFiltro)) {
+      if (i.estadoItem !== 'CANCELADO') { // Ya no hace falta re-filtrar la categoría aquí
         const actual = mapa.get(i.producto) || { cantidad: 0, preparacion: 0 };
         mapa.set(i.producto, { cantidad: actual.cantidad + i.cantidad, preparacion: i.tiempoPreparacionMinutos || 0 });
       }
     }));
     return Array.from(mapa.entries()).sort((a, b) => b[1].cantidad - a[1].cantidad);
-  }, [pedidosFiltrados, estacionFiltro]);
+  }, [pedidosFiltrados]);
 
   return (
     <div className={`h-screen flex flex-col font-sans overflow-hidden transition-colors duration-300 ${c.appBg}`}>
       
-      <header className="bg-black border-b border-gray-800 px-6 py-4 flex flex-col xl:flex-row items-center justify-between z-30 shrink-0 gap-4">
+      {/* ========================================================================= */}
+      {/* HEADER REDISEÑADO AL ESTILO DE LA IMAGEN */}
+      {/* ========================================================================= */}
+<header className={`border-b px-6 py-4 flex flex-col xl:flex-row items-center justify-between z-30 shrink-0 gap-4 ${theme === 'dark' ? 'bg-[#0a0a0a] border-gray-800' : 'bg-white border-gray-200'}`}>
         
-        <div className="flex items-center gap-3 w-full xl:w-auto">
-          <div className="bg-white p-2.5 rounded-[12px] border border-gray-600">
-            <ChefHat className="text-black w-6 h-6" strokeWidth={2.5} />
-          </div>
-          <div>
-            <h1 className="text-xl font-black text-white leading-none tracking-tight">La Ruta del Sabor</h1>
-            <p className="text-[10px] text-gray-400 font-bold mt-1 uppercase tracking-widest">Cocina: <span className="text-white">{user?.nombre || user?.correo || 'General'}</span></p>
-          </div>
+        {/* Lado Izquierdo: Título y Subtítulo Limpios */}
+        <div className="w-full xl:w-auto text-center xl:text-left">
+          <h1 className={`text-2xl font-black tracking-tight ${theme === 'dark' ? 'text-white' : 'text-gray-900'}`}>
+            Sistema de Cocina - KDS
+          </h1>
+          <p className={`text-sm mt-1 font-medium ${theme === 'dark' ? 'text-gray-400' : 'text-gray-500'}`}>
+            Gestión en tiempo real de pedidos en cocina
+          </p>
         </div>
 
-        <div className="flex items-center gap-2 bg-gray-900 p-1.5 rounded-xl border border-gray-800 w-full xl:w-auto overflow-x-auto custom-scrollbar">
-          <button onClick={() => setVista('TICKETS')} className={`flex items-center gap-2 px-4 py-2 rounded-lg text-xs font-black transition-all whitespace-nowrap ${vista === 'TICKETS' ? 'bg-white text-black shadow-md' : 'text-gray-400 hover:text-white'}`}>
-            <LayoutGrid size={14} /> Tickets
-          </button>
-          <button onClick={() => setVista('CONSOLIDADA')} className={`flex items-center gap-2 px-4 py-2 rounded-lg text-xs font-black transition-all whitespace-nowrap ${vista === 'CONSOLIDADA' ? 'bg-white text-black shadow-md' : 'text-gray-400 hover:text-white'}`}>
-            <List size={14} /> Consolidado
-          </button>
-          <button onClick={() => setVista('HISTORIAL')} className={`flex items-center gap-2 px-4 py-2 rounded-lg text-xs font-black transition-all whitespace-nowrap ${vista === 'HISTORIAL' ? 'bg-rose-500 text-white shadow-md shadow-rose-500/20' : 'text-gray-400 hover:text-rose-400'}`}>
-            <History size={14} /> Historial
-          </button>
-        </div>
+        {/* Centro: Pestañas y Filtros */}
+        {/* 🔥 FIX: Cambiamos overflow-x-auto por flex-wrap para que el menú desplegable NO se corte */}
+        <div className="flex flex-wrap items-center gap-3 w-full xl:w-auto justify-center">
+          <div className={`flex items-center p-1.5 rounded-xl border ${theme === 'dark' ? 'bg-[#141414] border-gray-800' : 'bg-gray-100 border-gray-200'}`}>
+            <button onClick={() => setVista('TICKETS')} className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-black transition-all whitespace-nowrap ${vista === 'TICKETS' ? (theme === 'dark' ? 'bg-white text-black shadow-md' : 'bg-white text-black shadow-sm') : 'text-gray-500 hover:text-gray-300'}`}>
+               Tickets
+            </button>
+            <button onClick={() => setVista('CONSOLIDADA')} className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-black transition-all whitespace-nowrap ${vista === 'CONSOLIDADA' ? (theme === 'dark' ? 'bg-white text-black shadow-md' : 'bg-white text-black shadow-sm') : 'text-gray-500 hover:text-gray-300'}`}>
+               Consolidado
+            </button>
+            <button onClick={() => setVista('HISTORIAL')} className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-black transition-all whitespace-nowrap ${vista === 'HISTORIAL' ? 'bg-rose-500 text-white shadow-md shadow-rose-500/20' : 'text-gray-500 hover:text-rose-400'}`}>
+               Historial
+            </button>
+          </div>
 
-        <div className="flex items-center gap-3 w-full xl:w-auto justify-end overflow-x-visible custom-scrollbar pb-1 xl:pb-0">
-          
           <div className="relative">
             <button 
               onClick={() => setMenuFiltroAbierto(!menuFiltroAbierto)}
-              className="flex items-center gap-2 px-4 py-2.5 rounded-xl bg-gray-900 text-gray-300 hover:text-white border border-gray-800 font-bold text-xs transition-colors"
+              className={`flex items-center gap-2 px-4 py-2.5 rounded-xl border font-bold text-xs transition-colors whitespace-nowrap ${theme === 'dark' ? 'bg-[#141414] text-gray-300 border-gray-800 hover:text-white' : 'bg-white text-gray-600 border-gray-200 hover:text-black'}`}
             >
               <Filter size={16} /> {estacionFiltro === 'TODAS' ? 'ÁREAS' : estacionFiltro}
             </button>
@@ -457,10 +496,10 @@ export default function CocinaPage() {
             {menuFiltroAbierto && (
               <>
                 <div className="fixed inset-0 z-40" onClick={() => setMenuFiltroAbierto(false)}></div>
-                <div className="absolute right-0 top-full mt-2 w-48 bg-gray-900 border border-gray-800 rounded-xl shadow-2xl p-2 z-50 animate-in fade-in zoom-in duration-200">
+                <div className={`absolute right-0 xl:left-0 top-full mt-2 w-48 border rounded-xl shadow-2xl p-2 z-50 animate-in fade-in zoom-in duration-200 ${theme === 'dark' ? 'bg-[#111] border-gray-800' : 'bg-white border-gray-200'}`}>
                   <button 
                     onClick={() => { setEstacionFiltro('TODAS'); setMenuFiltroAbierto(false); }} 
-                    className="w-full text-left px-3 py-3 text-sm font-bold text-gray-300 hover:bg-gray-800 hover:text-white rounded-lg active:scale-95"
+                    className={`w-full text-left px-3 py-3 text-sm font-bold rounded-lg active:scale-95 ${theme === 'dark' ? 'text-gray-300 hover:bg-gray-800 hover:text-white' : 'text-gray-600 hover:bg-gray-100 hover:text-black'}`}
                   >
                     TODAS LAS ÁREAS
                   </button>
@@ -468,7 +507,7 @@ export default function CocinaPage() {
                     <button 
                       key={e} 
                       onClick={() => { setEstacionFiltro(e); setMenuFiltroAbierto(false); }} 
-                      className="w-full text-left px-3 py-3 text-sm font-bold text-gray-300 hover:bg-gray-800 hover:text-white rounded-lg active:scale-95"
+                      className={`w-full text-left px-3 py-3 text-sm font-bold rounded-lg active:scale-95 ${theme === 'dark' ? 'text-gray-300 hover:bg-gray-800 hover:text-white' : 'text-gray-600 hover:bg-gray-100 hover:text-black'}`}
                     >
                       {e.toUpperCase()}
                     </button>
@@ -478,21 +517,32 @@ export default function CocinaPage() {
             )}
           </div>
 
-          <button onClick={() => changeTheme(theme === 'light' ? 'dark' : 'light')} className="p-2.5 rounded-xl bg-gray-900 text-gray-400 hover:text-white border border-gray-800 flex-shrink-0">
-            {theme === 'light' ? <Moon size={18} /> : <Sun size={18} />}
-          </button>
-
           <button onClick={() => setModalAgotados(true)} className="flex items-center gap-2 px-4 py-2.5 rounded-xl bg-amber-500/10 text-amber-500 hover:bg-amber-500/20 border border-amber-500/20 font-bold text-xs transition-colors flex-shrink-0">
             <AlertTriangle size={16} strokeWidth={2.5} /> <span className="hidden sm:inline">Pizarra 86</span>
           </button>
           
-          {/* 🔥 BOTÓN SALIR CON TEXTO */}
-          <button onClick={() => { logout(); navigate('/login'); }} className="px-4 py-2.5 bg-gray-900 border border-gray-800 hover:bg-rose-500/10 hover:border-rose-500/30 text-gray-500 hover:text-rose-500 rounded-xl transition-all flex-shrink-0 flex items-center gap-2">
-            <LogOut size={18} strokeWidth={2.5} />
-            <span className="font-black text-xs uppercase tracking-widest hidden sm:inline">Salir</span>
+          <button onClick={() => changeTheme(theme === 'light' ? 'dark' : 'light')} className={`p-2.5 rounded-xl border flex-shrink-0 transition-colors ${theme === 'dark' ? 'bg-[#141414] text-gray-400 border-gray-800 hover:text-white' : 'bg-white text-gray-500 border-gray-200 hover:text-black'}`}>
+            {theme === 'light' ? <Moon size={18} /> : <Sun size={18} />}
           </button>
-
         </div>
+
+        {/* Lado Derecho: Perfil de Usuario Movido Aquí */}
+        <div className="flex items-center gap-4 w-full xl:w-auto justify-center xl:justify-end shrink-0">
+          <div className="flex items-center gap-3 text-right">
+            <div className="hidden sm:block">
+              <p className={`text-sm font-bold leading-none ${theme === 'dark' ? 'text-white' : 'text-gray-900'}`}>{user?.nombre?.split(' ')[0] || user?.correo?.split('@')[0] || 'Cocinero'}</p>
+              <p className="text-[10px] text-gray-500 mt-1 uppercase tracking-widest">{user?.rol || 'Rol Cocina'}</p>
+            </div>
+            <div className="w-10 h-10 rounded-full bg-[#FFC640] flex items-center justify-center text-black font-black text-lg shadow-inner">
+              {(user?.nombre || user?.correo || 'C').charAt(0).toUpperCase()}
+            </div>
+          </div>
+          <div className={`w-px h-8 mx-1 ${theme === 'dark' ? 'bg-gray-800' : 'bg-gray-200'}`}></div>
+          <button onClick={() => { logout(); navigate('/login'); }} className={`p-2.5 rounded-xl transition-colors ${theme === 'dark' ? 'text-gray-500 hover:text-rose-500 hover:bg-rose-500/10' : 'text-gray-500 hover:text-rose-600 hover:bg-rose-50'}`} title="Cerrar Sesión">
+            <LogOut size={20} />
+          </button>
+        </div>
+
       </header>
 
       {/* ÁREA DE TRABAJO */}
@@ -501,7 +551,7 @@ export default function CocinaPage() {
         {vista === 'TICKETS' && (
           pedidosFiltrados.length === 0 ? (
             <div className="absolute inset-0 flex flex-col items-center justify-center">
-              <div className={`w-32 h-32 rounded-[2rem] flex items-center justify-center mb-6 shadow-sm border ${theme === 'dark' ? 'bg-[#1e293b] border-gray-800' : 'bg-white border-gray-200'}`}>
+              <div className={`w-32 h-32 rounded-[2rem] flex items-center justify-center mb-6 shadow-sm border ${theme === 'dark' ? 'bg-[#111111] border-gray-800' : 'bg-white border-gray-200'}`}>
                 <UtensilsCrossed size={48} strokeWidth={1.5} className={theme === 'dark' ? 'text-gray-700' : 'text-gray-300'} />
               </div>
               <h2 className={`text-3xl font-black tracking-tight ${theme === 'dark' ? 'text-gray-600' : 'text-gray-400'}`}>Estación Libre</h2>
@@ -525,16 +575,16 @@ export default function CocinaPage() {
 
         {vista === 'CONSOLIDADA' && (
           <div className="max-w-4xl mx-auto">
-            <div className={`p-6 rounded-[2rem] border shadow-sm ${theme === 'dark' ? 'bg-[#1e293b] border-gray-800' : 'bg-white border-gray-200'}`}>
+            <div className={`p-6 rounded-[2rem] border shadow-sm ${theme === 'dark' ? 'bg-[#111111] border-gray-800' : 'bg-white border-gray-200'}`}>
               <h2 className={`${c.textMain} text-2xl font-black mb-6`}>Resumen de Preparación {estacionFiltro !== 'TODAS' && `- ${estacionFiltro}`}</h2>
               {consolidado.length === 0 ? (
                 <p className={`${c.textMuted} text-center py-10 font-bold`}>No hay ítems para preparar.</p>
               ) : (
                 <div className="space-y-3">
                   {consolidado.map(([nombre, datos], idx) => (
-                    <div key={idx} className={`flex items-center justify-between p-4 rounded-2xl border ${theme === 'dark' ? 'bg-[#0f172a] border-gray-800' : 'bg-gray-50 border-gray-200'}`}>
+                    <div key={idx} className={`flex items-center justify-between p-4 rounded-2xl border ${theme === 'dark' ? 'bg-[#0a0a0a] border-gray-800' : 'bg-gray-50 border-gray-200'}`}>
                       <div className="flex items-center gap-4">
-                        <div className="w-12 h-12 bg-emerald-500 text-white rounded-xl flex items-center justify-center font-black text-xl shadow-lg shadow-emerald-500/20">
+                        <div className="w-12 h-12 bg-[#FFC640] text-black rounded-xl flex items-center justify-center font-black text-xl shadow-lg shadow-[#FFC640]/20">
                           {datos.cantidad}
                         </div>
                         <p className={`${c.textMain} font-black text-lg`}>{nombre}</p>
@@ -555,12 +605,12 @@ export default function CocinaPage() {
             ) : (
               <div className="space-y-4">
                 {pedidosHistorial.slice(0, 10).map((pedido) => (
-                  <div key={pedido.pedidoId} className={`flex flex-col sm:flex-row items-center justify-between p-5 rounded-2xl border shadow-sm gap-4 ${theme === 'dark' ? 'bg-[#1e293b] border-gray-800' : 'bg-white border-gray-200'}`}>
+                  <div key={pedido.pedidoId} className={`flex flex-col sm:flex-row items-center justify-between p-5 rounded-2xl border shadow-sm gap-4 ${theme === 'dark' ? 'bg-[#111111] border-gray-800' : 'bg-white border-gray-200'}`}>
                     <div>
                       <p className={`${c.textMain} font-black text-lg`}>{pedido.mesa || pedido.tipoConsumo} <span className="text-gray-500 text-sm ml-2">#{pedido.numeroOrden}</span></p>
                       <p className={`${c.textMuted} text-sm font-bold mt-1`}>{pedido.items.length} platos • Terminados hace poco</p>
                     </div>
-                    <button onClick={() => handleDeshacer(pedido.pedidoId)} disabled={procesandoId === pedido.pedidoId} className="w-full sm:w-auto px-6 py-3 bg-gray-900 hover:bg-gray-800 text-white rounded-xl font-black text-sm flex items-center justify-center gap-2 active:scale-95 transition-all shadow-md">
+                    <button onClick={() => handleDeshacer(pedido.pedidoId)} disabled={procesandoId === pedido.pedidoId} className={`w-full sm:w-auto px-6 py-3 rounded-xl font-black text-sm flex items-center justify-center gap-2 active:scale-95 transition-all shadow-md ${theme === 'dark' ? 'bg-gray-800 hover:bg-gray-700 text-white' : 'bg-gray-900 hover:bg-gray-800 text-white'}`}>
                       <Undo2 size={18} /> Recuperar Ticket
                     </button>
                   </div>

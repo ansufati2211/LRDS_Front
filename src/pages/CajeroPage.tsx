@@ -4,7 +4,7 @@ import {
   LogOut, Lock, Unlock, Receipt, X, Split, CircleCheck, 
   FileText, Printer, Ban, Moon, Sun, ShieldAlert, Loader2,
   Banknote, ArrowRightCircle, AlertTriangle, History,
-  TrendingUp, Smartphone, CreditCard, PieChart, ChevronDown, CheckCircle
+  TrendingUp, Smartphone, CreditCard, PieChart, ChevronDown, CheckCircle,
 } from 'lucide-react';
 import { abrirCaja, cerrarCaja, getCajaActiva, procesarPago, getResumenCaja } from '@/api/caja';
 import { getPedidosActivos, crearDocumentoCobro, listarDocumentosCobro, pagarDocumentoCobro, getHistorialPedidos } from '@/api/pedidos';
@@ -18,31 +18,35 @@ import type { PedidoActivo } from '@/types';
 import type { DocumentoCobro } from '@/api/pedidos';
 import type { DocumentoVenta } from '@/api/documentosVenta';
 
+// 🔑 TOKEN PARA LA API (Consultas Perú)
+const CONSULTAS_PERU_TOKEN = "3c05fc4ef7c85dda202821e3e379ab5b2263f63f9d5f407d819743e5c3aaaee9";
+
+// 🔥 TEMAS (Exactamente los colores que tú personalizaste)
 const THEMES = {
   light: {
-    appBg: 'bg-slate-100', panelBg: 'bg-white', cardBg: 'bg-white', itemBg: 'bg-slate-50', 
-    textMain: 'text-slate-900', textMuted: 'text-slate-500',
-    border: 'border-slate-200', borderLight: 'border-slate-100',
-    primaryBtn: 'bg-indigo-600 hover:bg-indigo-700 text-white shadow-xl shadow-indigo-200', 
-    secondaryBtn: 'bg-white border border-slate-200 hover:bg-slate-50 text-slate-700 shadow-sm',
-    inputBg: 'bg-white focus:bg-slate-50 text-slate-900', ring: 'focus:ring-indigo-500', iconBadge: 'bg-indigo-600 text-white'
+    appBg: 'bg-gray-50', panelBg: 'bg-white', cardBg: 'bg-white', itemBg: 'bg-gray-50', 
+    textMain: 'text-gray-900', textMainHover: 'hover:text-gray-900', textMuted: 'text-gray-500',
+    border: 'border-gray-200', borderLight: 'border-gray-100',
+    primaryBtn: 'bg-gradient-to-r from-orange-500 to-amber-500 hover:from-orange-400 hover:to-amber-400 text-white font-black font-bold', 
+    secondaryBtn: 'bg-white border border-gray-200 hover:bg-gray-50 text-gray-700 shadow-sm',
+    inputBg: 'bg-white focus:bg-gray-50 text-gray-900', ring: 'focus:ring-orange-400', iconBadge: 'bg-gray-900 text-white'
   },
   dark: {
-    appBg: 'bg-[#0f172a]', panelBg: 'bg-[#1e293b]', cardBg: 'bg-[#1e293b]', itemBg: 'bg-[#0b1120]', 
-    textMain: 'text-white', textMuted: 'text-slate-400',
-    border: 'border-slate-700', borderLight: 'border-slate-800',
-    primaryBtn: 'bg-indigo-500 hover:bg-indigo-600 text-white shadow-lg shadow-indigo-500/20', 
-    secondaryBtn: 'bg-[#334155] hover:bg-[#475569] text-white border-transparent',
-    inputBg: 'bg-[#0b1120] focus:bg-[#1e293b] text-white', ring: 'focus:ring-indigo-400', iconBadge: 'bg-indigo-500 text-white'
+    appBg: 'bg-[#050505]', panelBg: 'bg-[#0a0a0a]', cardBg: 'bg-[#0a0a0a]', itemBg: 'bg-[#141414]', 
+    textMain: 'text-white', textMainHover: 'hover:text-white', textMuted: 'text-gray-400',
+    border: 'border-gray-800/60', borderLight: 'border-gray-800/40',
+    primaryBtn: 'bg-gradient-to-r from-orange-500 to-amber-500 hover:from-orange-400 hover:to-amber-400 text-white font-black font-bold', 
+    secondaryBtn: 'bg-[#141414] hover:bg-[#222] text-white border border-gray-800',
+    inputBg: 'bg-[#0a0a0a] focus:bg-[#141414] text-white', ring: 'focus:ring-[#FFC640]/50', iconBadge: 'bg-white text-black'
   }
 };
 type ThemeKey = 'light' | 'dark';
 
 const METODOS_INFO: Record<string, { icon: React.ReactNode, label: string, color: string, bg: string }> = {
-  'EFECTIVO': { icon: <Banknote size={18} />, label: 'Efectivo', color: 'text-emerald-600', bg: 'bg-emerald-100' },
-  'YAPE': { icon: <Smartphone size={18} />, label: 'Yape', color: 'text-purple-600', bg: 'bg-purple-100' },
-  'PLIN': { icon: <Smartphone size={18} />, label: 'Plin', color: 'text-sky-600', bg: 'bg-sky-100' },
-  'TARJETA': { icon: <CreditCard size={18} />, label: 'Tarjeta', color: 'text-blue-600', bg: 'bg-blue-100' },
+  'EFECTIVO': { icon: <Banknote size={18} />, label: 'Efectivo', color: 'text-emerald-500', bg: 'bg-emerald-500/10' },
+  'YAPE': { icon: <Smartphone size={18} />, label: 'Yape', color: 'text-purple-500', bg: 'bg-purple-500/10' },
+  'PLIN': { icon: <Smartphone size={18} />, label: 'Plin', color: 'text-sky-500', bg: 'bg-sky-500/10' },
+  'TARJETA': { icon: <CreditCard size={18} />, label: 'Tarjeta', color: 'text-blue-500', bg: 'bg-blue-500/10' },
 };
 
 const puedeAnular = (rol?: string) => rol === 'ROLE_GERENTE_SEDE' || rol === 'ROLE_SUPER_ADMIN' || rol === 'ROLE_ADMIN_EMPRESA';
@@ -71,28 +75,58 @@ ${res.data}
   }
 };
 
-function ModalConfirmacion({ isOpen, title, message, type, requireInput, inputPlaceholder, onConfirm, onCancel, loading }: any) {
+// ============================================================================
+// FUNCIÓN CONSULTA API EXTERNA (Plan B Automático)
+// ============================================================================
+const buscarClienteExterno = async (tipo: string, documento: string, setNombre: (val: string) => void, setLoading: (val: boolean) => void) => {
+  if (!documento || (tipo === 'BOLETA' && documento.length !== 8) || (tipo === 'FACTURA' && documento.length !== 11)) return;
+  
+  setLoading(true);
+  try {
+    const response = await fetch('https://api.consultasperu.com/api/v1/query', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        token: CONSULTAS_PERU_TOKEN,
+        type_document: tipo === 'FACTURA' ? 'ruc' : 'dni',
+        document_number: documento
+      })
+    });
+    const json = await response.json();
+    if (json.success && json.data) {
+      // Autocompleta automáticamente, pero el input queda libre para editar (Plan B)
+      setNombre(tipo === 'FACTURA' ? json.data.name : json.data.full_name);
+    }
+  } catch (error) {
+    console.error("Error al consultar API", error);
+  } finally {
+    setLoading(false);
+  }
+};
+
+function ModalConfirmacion({ isOpen, title, message, type, requireInput, inputPlaceholder, onConfirm, onCancel, loading, theme }: any) {
+  const c = THEMES[theme as ThemeKey] || THEMES.dark;
   const [val, setVal] = useState('');
   useEffect(() => { if (isOpen) setVal(''); }, [isOpen]);
   if (!isOpen) return null;
   return (
     <div className="fixed inset-0 bg-black/80 backdrop-blur-sm flex items-center justify-center z-[70] p-4 animate-in fade-in duration-200">
-      <div className="bg-white rounded-[2rem] shadow-2xl w-full max-w-md overflow-hidden animate-in zoom-in-95 duration-200">
-        <div className={`px-8 py-8 flex flex-col items-center text-center ${type === 'danger' ? 'bg-rose-50' : 'bg-indigo-50'}`}>
-          <div className={`w-20 h-20 rounded-full flex items-center justify-center mb-5 ${type === 'danger' ? 'bg-rose-100 text-rose-500' : 'bg-indigo-100 text-indigo-500'}`}>
+      <div className={`${c.panelBg} border ${c.border} rounded-[2rem] shadow-2xl w-full max-w-md overflow-hidden animate-in zoom-in-95 duration-200`}>
+        <div className={`px-8 py-8 flex flex-col items-center text-center ${type === 'danger' ? 'bg-red-500/10' : 'bg-amber-500/10'}`}>
+          <div className={`w-20 h-20 rounded-full flex items-center justify-center mb-5 ${type === 'danger' ? 'bg-red-500/20 text-red-500' : 'bg-amber-500/20 text-amber-500'}`}>
             {type === 'danger' ? <ShieldAlert size={40} /> : <AlertTriangle size={40} />}
           </div>
-          <h2 className={`font-black text-2xl tracking-tight mb-3 ${type === 'danger' ? 'text-rose-700' : 'text-indigo-700'}`}>{title}</h2>
-          <p className="text-sm font-bold text-slate-600 leading-relaxed">{message}</p>
+          <h2 className={`font-black text-2xl tracking-tight mb-3 ${type === 'danger' ? 'text-red-500' : 'text-amber-500'}`}>{title}</h2>
+          <p className={`text-sm font-bold leading-relaxed ${c.textMuted}`}>{message}</p>
         </div>
         {requireInput && (
-          <div className="px-8 pt-4 pb-8 bg-white">
-            <input autoFocus type={type === 'number' ? 'number' : 'text'} step="0.1" value={val} onChange={(e) => setVal(e.target.value)} placeholder={inputPlaceholder} className="w-full px-5 py-4 bg-slate-50 border border-slate-200 rounded-2xl focus:ring-4 focus:ring-indigo-500/20 text-slate-900 outline-none font-black text-lg text-center transition-all" />
+          <div className={`px-8 pt-4 pb-8 ${c.panelBg}`}>
+            <input autoFocus type={type === 'number' ? 'number' : 'text'} step="0.1" value={val} onChange={(e) => setVal(e.target.value)} placeholder={inputPlaceholder} className={`w-full px-5 py-4 border ${c.border} rounded-2xl ${c.inputBg} ${c.ring} outline-none font-black text-lg text-center transition-all`} />
           </div>
         )}
-        <div className={`px-8 pb-8 flex gap-4 bg-white ${!requireInput ? 'pt-8' : ''}`}>
-          <button onClick={onCancel} disabled={loading} className="flex-1 px-6 py-4 border-2 border-slate-200 text-slate-600 rounded-2xl font-bold hover:bg-slate-50 active:scale-95 transition-transform">Volver</button>
-          <button onClick={() => onConfirm(val)} disabled={loading || (requireInput && !val)} className={`flex-1 px-6 py-4 text-white rounded-2xl font-bold active:scale-95 transition-transform flex justify-center items-center gap-2 ${type === 'danger' ? 'bg-rose-600 hover:bg-rose-700' : 'bg-indigo-600 hover:bg-indigo-700'} disabled:opacity-50 shadow-lg`}>
+        <div className={`px-8 pb-8 flex gap-4 ${c.panelBg} ${!requireInput ? 'pt-8' : ''}`}>
+          <button onClick={onCancel} disabled={loading} className={`flex-1 px-6 py-4 border-2 ${c.borderLight} ${c.textMuted} rounded-2xl font-bold hover:${c.textMain} transition-transform active:scale-95`}>Volver</button>
+          <button onClick={() => onConfirm(val)} disabled={loading || (requireInput && !val)} className={`flex-1 px-6 py-4 rounded-2xl font-black active:scale-95 transition-transform flex justify-center items-center gap-2 ${type === 'danger' ? 'bg-red-500 hover:bg-red-600 text-white' : c.primaryBtn} disabled:opacity-50 shadow-lg`}>
             {loading && <Loader2 size={16} className="animate-spin" />}
             {loading ? 'Procesando' : 'Confirmar'}
           </button>
@@ -138,7 +172,7 @@ function SelectorPagos({ total, c, onConfirmar }: any) {
               <div className="relative flex-1 min-w-0">
                 <button 
                   onClick={() => setDropdownAbierto(dropdownAbierto === i ? null : i)}
-                  className={`flex items-center justify-between w-full px-4 py-3.5 ${c.panelBg} border ${c.border} rounded-xl text-sm font-black outline-none transition-colors hover:border-indigo-400`}
+                  className={`flex items-center justify-between w-full px-4 py-3.5 ${c.panelBg} border ${c.border} rounded-xl text-sm font-black outline-none transition-colors hover:border-orange-500/50`}
                 >
                   <div className="flex items-center gap-3">
                     <div className={`p-1.5 rounded-lg ${METODOS_INFO[pago.metodoPago].bg} ${METODOS_INFO[pago.metodoPago].color}`}>
@@ -155,7 +189,7 @@ function SelectorPagos({ total, c, onConfirmar }: any) {
                       <button
                         key={key}
                         onClick={() => { actualizarPago(i, 'metodoPago', key); setDropdownAbierto(null); }}
-                        className={`flex items-center gap-3 w-full px-4 py-3.5 text-sm font-bold transition-all hover:bg-slate-100 dark:hover:bg-slate-800 ${c.textMain}`}
+                        className={`flex items-center gap-3 w-full px-4 py-3.5 text-sm font-bold transition-all hover:bg-gray-800 ${c.textMain}`}
                       >
                         <div className={`p-1.5 rounded-lg ${info.bg} ${info.color}`}>{info.icon}</div>
                         {info.label}
@@ -170,7 +204,7 @@ function SelectorPagos({ total, c, onConfirmar }: any) {
                 <input 
                   type="number" min="0" step="0.10" value={pago.monto} 
                   onChange={(e) => actualizarPago(i, 'monto', e.target.value === '' ? '' : e.target.value)} 
-                  className={`w-28 md:w-32 pl-8 pr-3 py-3.5 ${c.inputBg} border ${c.border} rounded-xl text-sm md:text-base font-black outline-none transition-colors focus:ring-2 focus:ring-indigo-500`} 
+                  className={`w-28 md:w-32 pl-8 pr-3 py-3.5 ${c.inputBg} border ${c.border} rounded-xl text-sm md:text-base font-black outline-none transition-colors focus:ring-2 focus:ring-[#FFC640]/50`} 
                 />
               </div>
               {pagos.length > 1 && <button onClick={() => quitarMetodo(i)} className={`shrink-0 p-3.5 bg-rose-500/10 text-rose-500 hover:bg-rose-500 hover:text-white rounded-xl transition-colors`}><X size={18} /></button>}
@@ -179,7 +213,7 @@ function SelectorPagos({ total, c, onConfirmar }: any) {
             {(pago.metodoPago === 'YAPE' || pago.metodoPago === 'PLIN') && (
               <div className="relative animate-in fade-in slide-in-from-top-2">
                 <Smartphone className={`absolute left-4 top-1/2 -translate-y-1/2 ${c.textMuted}`} size={16} />
-                <input type="text" placeholder="Nro de Operación / Celular" value={pago.numeroYape || ''} onChange={(e) => actualizarPago(i, 'numeroYape', e.target.value)} className={`w-full min-w-0 pl-11 pr-4 py-3.5 text-xs md:text-sm font-bold border ${c.border} rounded-xl ${c.inputBg} outline-none focus:ring-2 focus:ring-indigo-500 transition-colors`} />
+                <input type="text" placeholder="Nro de Operación / Celular" value={pago.numeroYape || ''} onChange={(e) => actualizarPago(i, 'numeroYape', e.target.value)} className={`w-full min-w-0 pl-11 pr-4 py-3.5 text-xs md:text-sm font-bold border ${c.border} rounded-xl ${c.inputBg} outline-none focus:ring-2 focus:ring-[#FFC640]/50 transition-colors`} />
               </div>
             )}
 
@@ -187,14 +221,14 @@ function SelectorPagos({ total, c, onConfirmar }: any) {
               <div className="flex gap-2 animate-in fade-in slide-in-from-top-2">
                 <div className="relative w-32 md:w-40 shrink-0">
                   <CreditCard className={`absolute left-3 top-1/2 -translate-y-1/2 ${c.textMuted}`} size={16} />
-                  <input type="text" placeholder="4 Dígitos" maxLength={4} value={pago.ultimosDigitos || ''} onChange={(e) => actualizarPago(i, 'ultimosDigitos', e.target.value.replace(/\D/g, ''))} className={`w-full min-w-0 pl-9 pr-2 py-3.5 text-xs md:text-sm font-bold border ${c.border} rounded-xl ${c.inputBg} outline-none focus:ring-2 focus:ring-indigo-500 transition-colors`} />
+                  <input type="text" placeholder="4 Dígitos" maxLength={4} value={pago.ultimosDigitos || ''} onChange={(e) => actualizarPago(i, 'ultimosDigitos', e.target.value.replace(/\D/g, ''))} className={`w-full min-w-0 pl-9 pr-2 py-3.5 text-xs md:text-sm font-bold border ${c.border} rounded-xl ${c.inputBg} outline-none focus:ring-2 focus:ring-[#FFC640]/50 transition-colors`} />
                 </div>
-                <input type="text" placeholder="Titular de la Tarjeta" value={pago.titular || ''} onChange={(e) => actualizarPago(i, 'titular', e.target.value)} className={`flex-1 min-w-0 px-4 py-3.5 text-xs md:text-sm font-bold border ${c.border} rounded-xl ${c.inputBg} outline-none focus:ring-2 focus:ring-indigo-500 transition-colors`} />
+                <input type="text" placeholder="Titular de la Tarjeta" value={pago.titular || ''} onChange={(e) => actualizarPago(i, 'titular', e.target.value)} className={`flex-1 min-w-0 px-4 py-3.5 text-xs md:text-sm font-bold border ${c.border} rounded-xl ${c.inputBg} outline-none focus:ring-2 focus:ring-[#FFC640]/50 transition-colors`} />
               </div>
             )}
           </div>
         ))}
-        {pagos.length < 3 && <button onClick={agregarMetodo} className="w-full py-4 border-2 border-dashed border-indigo-500/30 text-indigo-500 hover:bg-indigo-500/10 rounded-xl text-xs font-black tracking-widest uppercase transition-colors">+ Añadir Pago Dividido</button>}
+        {pagos.length < 3 && <button onClick={agregarMetodo} className="w-full py-4 border-2 border-dashed border-amber-500/30 text-amber-500 hover:bg-amber-500/10 rounded-xl text-xs font-black tracking-widest uppercase transition-colors">+ Añadir Pago Dividido</button>}
       </div>
 
       <div className={`${c.panelBg} border ${c.border} rounded-2xl p-6 space-y-3 text-sm font-bold shadow-lg`}>
@@ -219,6 +253,18 @@ function ModalPago({ pedido, sesionId, c, onClose, onPagado }: any) {
   const [numeroDocReceptor, setNumeroDocReceptor] = useState('');
   const [razonSocial, setRazonSocial] = useState('');
   const [confirmDialog, setConfirmDialog] = useState<any>({ isOpen: false });
+  
+  // 🔥 ESTADO DE BÚSQUEDA PARA LA API
+  const [buscandoAPI, setBuscandoAPI] = useState(false);
+
+  // EFECTO QUE DISPARA LA BÚSQUEDA CUANDO SE COMPLETA EL DNI O RUC
+  useEffect(() => {
+    if (tipoDoc === 'BOLETA' && numeroDocReceptor.length === 8) {
+      buscarClienteExterno('BOLETA', numeroDocReceptor, setRazonSocial, setBuscandoAPI);
+    } else if (tipoDoc === 'FACTURA' && numeroDocReceptor.length === 11) {
+      buscarClienteExterno('FACTURA', numeroDocReceptor, setRazonSocial, setBuscandoAPI);
+    }
+  }, [numeroDocReceptor, tipoDoc]);
 
   const handleConfirmarPago = async (pagos: PagoItem[]) => {
     try {
@@ -238,7 +284,7 @@ function ModalPago({ pedido, sesionId, c, onClose, onPagado }: any) {
   const handleAnular = () => {
     if (!comprobante) return;
     setConfirmDialog({
-      isOpen: true, title: 'Anular Comprobante', message: 'Ingresa el motivo exacto de la anulación para auditoría.', type: 'danger', requireInput: true, inputPlaceholder: 'Ej. Error en los datos del cliente', isProcessing: false,
+      isOpen: true, title: 'Anular Comprobante', message: 'Ingresa el motivo exacto de la anulación para auditoría.', type: 'danger', requireInput: true, inputPlaceholder: 'Ej. Error en los datos del cliente', isProcessing: false, theme: 'dark',
       onConfirm: async (motivo: string) => {
         setConfirmDialog((p: any) => ({ ...p, loading: true }));
         try {
@@ -253,17 +299,17 @@ function ModalPago({ pedido, sesionId, c, onClose, onPagado }: any) {
   return (
     <div className="fixed inset-0 bg-black/80 backdrop-blur-sm flex items-center justify-center z-[60] p-4 animate-in fade-in duration-200">
       <div className={`${c.panelBg} rounded-[2rem] shadow-2xl w-full max-w-md overflow-hidden flex flex-col max-h-[90vh] border ${c.border}`}>
-        <div className="bg-emerald-500 px-8 py-6 flex items-center justify-between shrink-0">
+        <div className={`px-8 py-6 flex items-center justify-between border-b ${c.border} shrink-0`}>
           <div>
-            <h2 className="text-white font-black text-2xl tracking-tight">Cobrar #{pedido.id}</h2>
-            <p className="text-emerald-100 font-bold text-sm mt-0.5">{pedido.mesa || 'Para Llevar'}</p>
+            <h2 className={`${c.textMain} font-black text-2xl tracking-tight`}>Cobrar #{pedido.id}</h2>
+            <p className={`${c.textMuted} font-bold text-sm mt-0.5`}>{pedido.mesa || 'Para Llevar'}</p>
           </div>
-          <button onClick={onClose} className="text-white/80 hover:text-white bg-white/10 hover:bg-rose-500 p-2.5 rounded-full active:scale-95 transition-all"><X size={20} /></button>
+          <button onClick={onClose} className={`${c.textMuted} hover:text-white bg-gray-500/10 hover:bg-rose-500/20 p-2.5 rounded-full active:scale-95 transition-all`}><X size={20} /></button>
         </div>
         
         {exito ? (
-          <div className="p-10 text-center overflow-y-auto [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none]">
-            <div className="w-24 h-24 bg-emerald-100 rounded-full flex items-center justify-center mx-auto mb-6 shadow-inner">
+          <div className="p-10 text-center overflow-y-auto custom-scrollbar">
+            <div className="w-24 h-24 bg-emerald-500/10 rounded-full flex items-center justify-center mx-auto mb-6 shadow-inner border border-emerald-500/20">
               <CheckCircle size={48} className="text-emerald-500" />
             </div>
             <p className={`text-4xl font-black ${c.textMain} tracking-tight mb-2`}>¡Pagado!</p>
@@ -276,15 +322,15 @@ function ModalPago({ pedido, sesionId, c, onClose, onPagado }: any) {
                   {comprobante.estadoEmision === 'ANULADO' && <span className="text-[10px] font-black text-white bg-rose-500 px-3 py-1 rounded-lg uppercase tracking-widest">Anulada</span>}
                 </div>
                 <p className={`font-mono font-black ${c.textMain} text-2xl tracking-tight`}>{comprobante.serie}-{String(comprobante.correlativo).padStart(6, '0')}</p>
-                <p className={`text-lg font-black text-indigo-500 mt-1`}>S/ {comprobante.total.toFixed(2)}</p>
+                <p className={`text-lg font-black text-[#FFC640] mt-1`}>S/ {comprobante.total.toFixed(2)}</p>
               </div>
             )}
             <div className="flex flex-col gap-3 mt-8">
-              <button onClick={() => imprimirTicketTexto(pedido.id)} className={`w-full ${c.secondaryBtn} font-black py-4 rounded-xl text-sm transition-transform active:scale-95 flex items-center justify-center gap-2`}>
+              <button onClick={() => imprimirTicketTexto(pedido.id)} className={`w-full ${c.secondaryBtn} font-black py-4 rounded-xl text-sm transition-transform active:scale-95 flex items-center justify-center gap-2 border ${c.border}`}>
                 <Printer size={18} /> Imprimir Ticket
               </button>
               {comprobante?.estadoEmision !== 'ANULADO' && puedeAnular(user?.rol) && (
-                <button onClick={handleAnular} className="w-full text-rose-500 hover:text-rose-700 bg-rose-500/10 font-bold py-4 rounded-xl text-sm flex justify-center items-center gap-2 transition-transform active:scale-95">
+                <button onClick={handleAnular} className="w-full text-rose-500 hover:text-rose-400 bg-rose-500/10 font-bold py-4 rounded-xl text-sm flex justify-center items-center gap-2 transition-transform active:scale-95 border border-rose-500/20">
                   <Ban size={18} /> Anular Comprobante
                 </button>
               )}
@@ -292,11 +338,11 @@ function ModalPago({ pedido, sesionId, c, onClose, onPagado }: any) {
             </div>
           </div>
         ) : (
-          <div className="p-8 space-y-8 overflow-y-auto [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none]">
-            <div className={`${c.itemBg} rounded-2xl p-5 space-y-3 max-h-40 overflow-y-auto border ${c.borderLight} [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none] shadow-inner`}>
+          <div className="p-8 space-y-8 overflow-y-auto custom-scrollbar">
+            <div className={`${c.itemBg} rounded-2xl p-5 space-y-3 max-h-40 overflow-y-auto border ${c.borderLight} custom-scrollbar shadow-inner`}>
               {pedido.items.map((item: any, i: number) => (
                 <div key={i} className={`flex justify-between text-sm ${item.estadoItem === 'CANCELADO' ? 'opacity-40 line-through' : ''}`}>
-                  <span className={`${c.textMain} font-bold`}><span className="text-indigo-500">{item.cantidad}x</span> {item.nombreProducto}</span>
+                  <span className={`${c.textMain} font-bold`}><span className="text-[#FFC640]">{item.cantidad}x</span> {item.nombreProducto}</span>
                   <span className={`${c.textMuted} font-black`}>S/ {item.subtotal.toFixed(2)}</span>
                 </div>
               ))}
@@ -313,15 +359,26 @@ function ModalPago({ pedido, sesionId, c, onClose, onPagado }: any) {
               </div>
               {tipoDoc !== 'NOTA_VENTA' && (
                 <div className="space-y-3 animate-in fade-in pt-3">
-                  <input 
-                    type="text" 
-                    placeholder={tipoDoc === 'FACTURA' ? 'RUC (11 dígitos)' : 'DNI (Opcional - Máx 8)'} 
-                    maxLength={tipoDoc === 'FACTURA' ? 11 : 8} 
-                    value={numeroDocReceptor} 
-                    onChange={e => setNumeroDocReceptor(e.target.value.replace(/\D/g, ''))} 
-                    className={`w-full min-w-0 px-5 py-4 border ${c.border} rounded-xl text-sm font-bold focus:outline-none focus:ring-2 focus:ring-indigo-500 ${c.inputBg} transition-colors`} 
-                  />
-                  <input type="text" placeholder="Razón Social / Nombre" value={razonSocial} onChange={e => setRazonSocial(e.target.value)} className={`w-full min-w-0 px-5 py-4 border ${c.border} rounded-xl text-sm font-bold focus:outline-none focus:ring-2 focus:ring-indigo-500 ${c.inputBg} transition-colors`} />
+                  <div className="relative">
+                    <input 
+                      type="text" 
+                      placeholder={tipoDoc === 'FACTURA' ? 'RUC (11 dígitos)' : 'DNI (Opcional - Máx 8)'} 
+                      maxLength={tipoDoc === 'FACTURA' ? 11 : 8} 
+                      value={numeroDocReceptor} 
+                      onChange={e => setNumeroDocReceptor(e.target.value.replace(/\D/g, ''))} 
+                      className={`w-full min-w-0 pl-5 pr-10 py-4 border ${c.border} rounded-xl text-sm font-bold focus:outline-none focus:ring-2 ${c.ring} ${c.inputBg} transition-colors`} 
+                    />
+                    {buscandoAPI && <Loader2 className="absolute right-4 top-1/2 -translate-y-1/2 animate-spin text-amber-500" size={18} />}
+                  </div>
+                  <div className="relative">
+                    <input 
+                      type="text" 
+                      placeholder="Razón Social / Nombre" 
+                      value={razonSocial} 
+                      onChange={e => setRazonSocial(e.target.value)} 
+                      className={`w-full min-w-0 px-5 py-4 border ${c.border} rounded-xl text-sm font-bold focus:outline-none focus:ring-2 ${c.ring} ${c.inputBg} transition-colors`} 
+                    />
+                  </div>
                 </div>
               )}
             </div>
@@ -332,12 +389,12 @@ function ModalPago({ pedido, sesionId, c, onClose, onPagado }: any) {
           </div>
         )}
       </div>
-      <ModalConfirmacion {...confirmDialog} onCancel={() => setConfirmDialog((p: any) => ({ ...p, isOpen: false }))} />
+      <ModalConfirmacion {...confirmDialog} theme="dark" onCancel={() => setConfirmDialog((p: any) => ({ ...p, isOpen: false }))} />
     </div>
   );
 }
 
-function ModalSplitCuenta({ pedido, sesionId, c, onClose, onCambio }: any) {
+function ModalSplitCuenta({ pedido, sesionId, c, onClose, onCambio, theme }: any) {
   const [documentos, setDocumentos] = useState<DocumentoCobro[]>([]);
   const [seleccionados, setSeleccionados] = useState<number[]>([]);
   const [montoLibre, setMontoLibre] = useState('');
@@ -346,6 +403,18 @@ function ModalSplitCuenta({ pedido, sesionId, c, onClose, onCambio }: any) {
   const [tipoDocSplit, setTipoDocSplit] = useState<'NOTA_VENTA' | 'BOLETA' | 'FACTURA'>('NOTA_VENTA');
   const [rucSplit, setRucSplit] = useState('');
   const [razonSocialSplit, setRazonSocialSplit] = useState('');
+
+  // 🔥 ESTADO DE BÚSQUEDA PARA LA API (SPLIT)
+  const [buscandoAPI, setBuscandoAPI] = useState(false);
+
+  // EFECTO QUE DISPARA LA BÚSQUEDA CUANDO SE COMPLETA EL DNI O RUC
+  useEffect(() => {
+    if (tipoDocSplit === 'BOLETA' && rucSplit.length === 8) {
+      buscarClienteExterno('BOLETA', rucSplit, setRazonSocialSplit, setBuscandoAPI);
+    } else if (tipoDocSplit === 'FACTURA' && rucSplit.length === 11) {
+      buscarClienteExterno('FACTURA', rucSplit, setRazonSocialSplit, setBuscandoAPI);
+    }
+  }, [rucSplit, tipoDocSplit]);
 
   const cargar = useCallback(async () => setDocumentos(await listarDocumentosCobro(pedido.id)), [pedido.id]);
   useEffect(() => { cargar(); }, [cargar]);
@@ -394,17 +463,17 @@ function ModalSplitCuenta({ pedido, sesionId, c, onClose, onCambio }: any) {
   return (
     <div className="fixed inset-0 bg-black/80 backdrop-blur-sm flex items-center justify-center z-[60] p-4 animate-in fade-in duration-200">
       <div className={`${c.panelBg} rounded-[2rem] shadow-2xl w-full max-w-lg max-h-[90vh] flex flex-col overflow-hidden border ${c.border}`}>
-        <div className="bg-indigo-600 px-8 py-6 flex justify-between shrink-0 items-center">
+        <div className={`border-b ${c.border} px-8 py-6 flex justify-between shrink-0 items-center`}>
           <div>
-            <h2 className="text-white font-black text-xl flex items-center gap-2"><Split size={20} /> Dividir Cuenta</h2>
-            <p className="text-indigo-200 text-sm font-bold mt-1">Falta asignar: S/ {totalPorAsignar.toFixed(2)}</p>
+            <h2 className={`${c.textMain} font-black text-xl flex items-center gap-2`}><Split size={20} className="text-[#FFC640]"/> Dividir Cuenta</h2>
+            <p className={`${c.textMuted} text-sm font-bold mt-1`}>Falta asignar: S/ {totalPorAsignar.toFixed(2)}</p>
           </div>
-          <button onClick={onClose} className="text-white/80 hover:text-white bg-white/20 p-2.5 rounded-full h-fit active:scale-95 transition-transform"><X size={18} /></button>
+          <button onClick={onClose} className={`${c.textMuted} hover:${c.textMain} bg-gray-500/10 p-2.5 rounded-full h-fit active:scale-95 transition-colors`}><X size={18} /></button>
         </div>
 
-        <div className="flex-1 overflow-y-auto p-8 space-y-8 [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none]">
+        <div className="flex-1 overflow-y-auto p-8 space-y-8 custom-scrollbar">
           {pedidoCompletado && (
-            <div className="bg-emerald-500/10 border border-emerald-500/20 rounded-2xl p-5 flex items-center gap-3 text-emerald-600 text-sm font-black justify-center">
+            <div className="bg-emerald-500/10 border border-emerald-500/20 rounded-2xl p-5 flex items-center gap-3 text-emerald-500 text-sm font-black justify-center">
               <CircleCheck size={24} /> ¡Todas las partes pagadas!
             </div>
           )}
@@ -417,9 +486,9 @@ function ModalSplitCuenta({ pedido, sesionId, c, onClose, onCambio }: any) {
                   <div className="flex justify-between items-center mb-2">
                     <div>
                       <p className={`text-xs font-bold ${c.textMuted}`}>{doc.tipo === 'ITEMS' ? `${doc.detalleIds.length} ítem(s)` : 'Monto Fijo'}</p>
-                      <p className={`text-2xl font-black text-indigo-500 tracking-tight mt-0.5`}>S/ {doc.total.toFixed(2)}</p>
+                      <p className={`text-2xl font-black text-[#FFC640] tracking-tight mt-0.5`}>S/ {doc.total.toFixed(2)}</p>
                     </div>
-                    <span className={`text-[10px] font-black uppercase tracking-wider px-3 py-1.5 rounded-lg ${doc.estado === 'PAGADO' ? 'bg-emerald-500/10 text-emerald-500' : 'bg-amber-500/10 text-amber-500'}`}>
+                    <span className={`text-[10px] font-black uppercase tracking-wider px-3 py-1.5 rounded-lg ${doc.estado === 'PAGADO' ? 'bg-emerald-500/10 text-emerald-500 border border-emerald-500/20' : 'bg-amber-500/10 text-amber-500 border border-amber-500/20'}`}>
                       {doc.estado}
                     </span>
                   </div>
@@ -435,21 +504,24 @@ function ModalSplitCuenta({ pedido, sesionId, c, onClose, onCambio }: any) {
                           ))}
                         </div>
                         {tipoDocSplit !== 'NOTA_VENTA' && (
-                          <div className="flex gap-2">
-                            <input 
-                              type="text" 
-                              placeholder={tipoDocSplit === 'FACTURA' ? 'RUC (11)' : 'DNI (8)'} 
-                              maxLength={tipoDocSplit === 'FACTURA' ? 11 : 8} 
-                              value={rucSplit} 
-                              onChange={e => setRucSplit(e.target.value.replace(/\D/g, ''))} 
-                              className={`w-1/3 min-w-0 px-4 py-3.5 border ${c.borderLight} rounded-xl text-xs font-bold focus:outline-none focus:ring-2 focus:ring-indigo-500 ${c.inputBg}`} 
-                            />
-                            <input type="text" placeholder="Razón Social / Nombre" value={razonSocialSplit} onChange={e => setRazonSocialSplit(e.target.value)} className={`w-2/3 min-w-0 px-4 py-3.5 border ${c.borderLight} rounded-xl text-xs font-bold focus:outline-none focus:ring-2 focus:ring-indigo-500 ${c.inputBg}`} />
+                          <div className="flex gap-2 relative">
+                            <div className="relative w-1/3 min-w-0">
+                              <input 
+                                type="text" 
+                                placeholder={tipoDocSplit === 'FACTURA' ? 'RUC (11)' : 'DNI (8)'} 
+                                maxLength={tipoDocSplit === 'FACTURA' ? 11 : 8} 
+                                value={rucSplit} 
+                                onChange={e => setRucSplit(e.target.value.replace(/\D/g, ''))} 
+                                className={`w-full px-4 py-3.5 border ${c.borderLight} rounded-xl text-xs font-bold focus:outline-none focus:ring-2 ${c.ring} ${c.inputBg}`} 
+                              />
+                              {buscandoAPI && <Loader2 className="absolute right-3 top-1/2 -translate-y-1/2 animate-spin text-amber-500" size={14} />}
+                            </div>
+                            <input type="text" placeholder="Razón Social / Nombre" value={razonSocialSplit} onChange={e => setRazonSocialSplit(e.target.value)} className={`w-2/3 min-w-0 px-4 py-3.5 border ${c.borderLight} rounded-xl text-xs font-bold focus:outline-none focus:ring-2 ${c.ring} ${c.inputBg}`} />
                           </div>
                         )}
                       </div>
                       <SelectorPagos total={doc.total} c={c} onConfirmar={(p: any) => handlePagar(doc, p)} />
-                      <button onClick={() => setDocPagandoId(null)} className={`w-full mt-4 py-3 text-xs font-bold ${c.textMuted} hover:${c.textMain} transition-colors`}>Cancelar pago</button>
+                      <button onClick={() => setDocPagandoId(null)} className={`w-full mt-4 py-3 text-xs font-bold ${c.textMuted} hover:${c.textMain} transition-colors border border-gray-500/20 rounded-xl`}>Cancelar pago</button>
                     </div>
                   )}
                   {doc.estado === 'PENDIENTE' && docPagandoId !== doc.id && (
@@ -468,10 +540,10 @@ function ModalSplitCuenta({ pedido, sesionId, c, onClose, onCambio }: any) {
               
               {itemsDisponibles.length > 0 && (
                 <div className="space-y-4">
-                  <div className="space-y-2 max-h-48 overflow-y-auto [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none] pr-2">
+                  <div className="space-y-2 max-h-48 overflow-y-auto custom-scrollbar pr-2">
                     {itemsDisponibles.map((i: any) => (
-                      <label key={i.detalleId} className={`flex items-center gap-4 ${c.cardBg} p-4 rounded-xl border ${c.borderLight} cursor-pointer hover:border-indigo-400 transition-colors`}>
-                        <input type="checkbox" checked={seleccionados.includes(i.detalleId)} onChange={() => setSeleccionados(p => p.includes(i.detalleId) ? p.filter(x => x !== i.detalleId) : [...p, i.detalleId])} className="w-5 h-5 text-indigo-600 rounded focus:ring-indigo-500" />
+                      <label key={i.detalleId} className={`flex items-center gap-4 ${c.cardBg} p-4 rounded-xl border ${c.borderLight} cursor-pointer hover:border-[#FFC640]/50 transition-colors`}>
+                        <input type="checkbox" checked={seleccionados.includes(i.detalleId)} onChange={() => setSeleccionados(p => p.includes(i.detalleId) ? p.filter(x => x !== i.detalleId) : [...p, i.detalleId])} className={`w-5 h-5 text-amber-500 rounded focus:ring-amber-500 ${c.appBg} border-${c.border}`} />
                         <span className={`flex-1 text-sm font-bold ${c.textMain}`}>{i.cantidad}x {i.nombreProducto}</span>
                         <span className={`font-black text-sm ${c.textMuted}`}>S/ {i.subtotal.toFixed(2)}</span>
                       </label>
@@ -486,7 +558,7 @@ function ModalSplitCuenta({ pedido, sesionId, c, onClose, onCambio }: any) {
               <div className={`flex flex-col gap-3 pt-5 border-t ${c.borderLight}`}>
                 <span className={`text-[10px] font-black uppercase tracking-widest ${c.textMuted}`}>O extraer por monto (S/)</span>
                 <div className="flex gap-2">
-                  <input type="number" min="0" max={totalPorAsignar} step="0.10" value={montoLibre} onChange={(e) => setMontoLibre(e.target.value)} placeholder="0.00" className={`w-full min-w-0 px-4 py-3.5 border ${c.border} rounded-xl text-sm font-bold focus:outline-none focus:ring-2 focus:ring-indigo-500 ${c.inputBg}`} />
+                  <input type="number" min="0" max={totalPorAsignar} step="0.10" value={montoLibre} onChange={(e) => setMontoLibre(e.target.value)} placeholder="0.00" className={`w-full min-w-0 px-4 py-3.5 border ${c.border} rounded-xl text-sm font-bold focus:outline-none focus:ring-2 ${c.ring} ${c.inputBg}`} />
                   <button onClick={handleCrearPorMonto} disabled={!montoLibre} className={`${c.primaryBtn} disabled:opacity-50 text-sm font-black px-6 rounded-xl active:scale-95 transition-transform`}>Extraer</button>
                 </div>
               </div>
@@ -500,21 +572,45 @@ function ModalSplitCuenta({ pedido, sesionId, c, onClose, onCambio }: any) {
 
 function HeaderCajero({ user, theme, changeTheme, logout }: any) {
   return (
-    <header className="bg-slate-950 border-b border-slate-900 px-8 py-5 flex items-center justify-between z-30 shrink-0">
-      <div className="flex items-center gap-4">
-        <div className="bg-white p-3 rounded-2xl"><Receipt className="text-slate-900 w-6 h-6" strokeWidth={2.5} /></div>
-        <div>
-          <h1 className="text-2xl font-black text-white leading-none tracking-tight">VERONICA Caja</h1>
-          <p className="text-[11px] text-slate-400 font-bold mt-1 uppercase tracking-widest">Operador: <span className="text-white">{user?.nombre || user?.correo}</span></p>
+    <header className={`border-b px-6 py-4 flex flex-col xl:flex-row items-center justify-between z-30 shrink-0 gap-4 ${theme === 'dark' ? 'bg-[#0a0a0a] border-gray-800/60' : 'bg-white border-gray-200'}`}>
+      
+      {/* Lado Izquierdo: Branding Limpio */}
+      <div className="flex items-center gap-3 w-full xl:w-auto text-center xl:text-left">
+        <div className="bg-[#FFC640] p-2.5 rounded-[12px] shadow-inner">
+          <Receipt className="text-black w-5 h-5" strokeWidth={2.5} />
+        </div>
+        <div className="hidden sm:block">
+          <h1 className={`text-xl font-black leading-none tracking-tight ${theme === 'dark' ? 'text-white' : 'text-gray-900'}`}>La Ruta del Sabor</h1>
+          <p className={`text-[10px] font-bold mt-1 uppercase tracking-widest ${theme === 'dark' ? 'text-gray-400' : 'text-gray-500'}`}>Caja Registradora</p>
         </div>
       </div>
-      <div className="flex items-center gap-5">
-        <button onClick={() => changeTheme(theme === 'light' ? 'dark' : 'light')} className="p-3 rounded-xl bg-slate-800 text-slate-400 hover:text-white hover:bg-slate-700 transition-colors">
-          {theme === 'light' ? <Moon size={20} /> : <Sun size={20} />}
+      
+      {/* Lado Derecho: Controles y Perfil */}
+      <div className="flex items-center gap-4 w-full xl:w-auto justify-center xl:justify-end shrink-0">
+        
+        {/* Toggle Tema */}
+        <button onClick={() => changeTheme(theme === 'light' ? 'dark' : 'light')} className={`p-2.5 rounded-xl border transition-colors ${theme === 'dark' ? 'bg-[#141414] text-gray-400 border-gray-800 hover:text-white' : 'bg-white text-gray-500 border-gray-200 hover:text-black'}`}>
+          {theme === 'light' ? <Moon size={18} /> : <Sun size={18} />}
         </button>
-        <div className="h-10 w-px bg-slate-800 mx-2"></div>
-        <button onClick={logout} className="flex items-center gap-2 p-3 text-sm font-bold text-slate-400 hover:text-white hover:bg-rose-500/20 rounded-xl transition-all">
-          <LogOut size={20} /> Salir
+
+        <div className={`hidden sm:block h-8 w-px mx-1 ${theme === 'dark' ? 'bg-gray-800' : 'bg-gray-200'}`}></div>
+
+        {/* Perfil */}
+        <div className="flex items-center gap-3 text-right">
+          <div className="hidden sm:block">
+            <p className={`text-sm font-bold leading-none ${theme === 'dark' ? 'text-white' : 'text-gray-900'}`}>{user?.nombre?.split(' ')[0] || user?.correo?.split('@')[0] || 'Cajero'}</p>
+            <p className="text-[10px] text-gray-500 mt-1 uppercase tracking-widest">{user?.rol || 'Rol Cajero'}</p>
+          </div>
+          <div className="w-10 h-10 rounded-full bg-[#FFC640] flex items-center justify-center text-black font-black text-lg shadow-inner">
+            {(user?.nombre || user?.correo || 'C').charAt(0).toUpperCase()}
+          </div>
+        </div>
+
+        <div className={`w-px h-8 mx-1 ${theme === 'dark' ? 'bg-gray-800' : 'bg-gray-200'}`}></div>
+        
+        {/* Logout */}
+        <button onClick={logout} className={`p-2.5 rounded-xl transition-colors ${theme === 'dark' ? 'text-gray-500 hover:text-rose-500 hover:bg-rose-500/10' : 'text-gray-500 hover:text-rose-600 hover:bg-rose-50'}`} title="Cerrar Sesión">
+          <LogOut size={20} />
         </button>
       </div>
     </header>
@@ -524,7 +620,7 @@ function HeaderCajero({ user, theme, changeTheme, logout }: any) {
 export default function CajeroPage() {
   const navigate = useNavigate();
   const { user, logout } = useAuthStore();
-  const [theme, setTheme] = useState<ThemeKey>(() => (localStorage.getItem('pos_theme_bw') as ThemeKey) || 'light');
+  const [theme, setTheme] = useState<ThemeKey>(() => (localStorage.getItem('pos_theme_bw') as ThemeKey) || 'dark');
   const changeTheme = (newTheme: ThemeKey) => { setTheme(newTheme); localStorage.setItem('pos_theme_bw', newTheme); };
   const c = THEMES[theme];
 
@@ -620,7 +716,7 @@ export default function CajeroPage() {
       message: accion === 'ABRIR' 
         ? `¿Confirmas la apertura con S/ ${monto.toFixed(2)}?` 
         : `Vas a declarar S/ ${monto.toFixed(2)} físicos en la caja. El sistema validará los descuadres.`,
-      type: accion === 'ABRIR' ? 'warning' : 'danger', requireInput: false, isProcessing: false,
+      type: accion === 'ABRIR' ? 'warning' : 'danger', requireInput: false, isProcessing: false, theme: theme,
       onConfirm: async () => {
         setOperando(true);
         setConfirmDialog((p: any) => ({ ...p, loading: true }));
@@ -652,11 +748,11 @@ export default function CajeroPage() {
 
       <div className="flex-1 flex overflow-hidden">
         {/* SIDEBAR: PANEL DE CAJA */}
-        <aside className={`w-full md:w-96 lg:w-[420px] ${c.panelBg} border-r ${c.border} flex flex-col shrink-0 overflow-y-auto [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none] shadow-2xl z-20`}>
+        <aside className={`w-full md:w-96 lg:w-[420px] ${c.panelBg} border-r ${c.border} flex flex-col shrink-0 overflow-y-auto custom-scrollbar shadow-2xl z-20`}>
           <div className="p-10 space-y-8">
             <div>
               <p className={`text-xs font-black uppercase tracking-widest ${c.textMuted} mb-3`}>Estado de Caja</p>
-              <div className={`w-24 h-24 rounded-[2rem] flex items-center justify-center mb-6 shadow-inner transition-colors ${!sesion || sesion.estado === 'CERRADA' ? 'bg-rose-100 text-rose-600' : 'bg-emerald-100 text-emerald-600'}`}>
+              <div className={`w-24 h-24 rounded-[2rem] flex items-center justify-center mb-6 shadow-inner transition-colors ${!sesion || sesion.estado === 'CERRADA' ? 'bg-rose-500/10 text-rose-500 border border-rose-500/20' : 'bg-emerald-500/10 text-emerald-500 border border-emerald-500/20'}`}>
                 {!sesion || sesion.estado === 'CERRADA' ? <Lock size={48} /> : <Unlock size={48} />}
               </div>
               <h2 className={`text-5xl font-black tracking-tight ${c.textMain} mb-2`}>
@@ -686,7 +782,7 @@ export default function CajeroPage() {
                     <label className={`text-[10px] font-black uppercase tracking-widest ${c.textMuted} mb-2 block`}>Fondo Base para dar Vuelto (S/)</label>
                     <div className="relative">
                       <span className={`absolute left-5 top-1/2 -translate-y-1/2 text-sm ${c.textMuted}`}>S/</span>
-                      <input type="number" min="0" step="0.5" value={montoApertura} onChange={e => setMontoApertura(e.target.value)} className={`w-full min-w-0 pl-12 pr-5 py-5 ${c.inputBg} border-2 ${c.border} rounded-2xl text-xl font-black focus:outline-none focus:border-indigo-500 focus:ring-4 focus:ring-indigo-500/20 transition-all`} placeholder="0.00" />
+                      <input type="number" min="0" step="0.5" value={montoApertura} onChange={e => setMontoApertura(e.target.value)} className={`w-full min-w-0 pl-12 pr-5 py-5 ${c.inputBg} border-2 ${c.border} rounded-2xl text-xl font-black focus:outline-none focus:border-[#FFC640] focus:ring-4 focus:ring-[#FFC640]/20 transition-all`} placeholder="0.00" />
                     </div>
                   </div>
                   <button onClick={() => handleAccionCaja('ABRIR')} disabled={!montoApertura || operando} className={`w-full ${c.primaryBtn} disabled:opacity-50 py-5 rounded-2xl font-black text-base transition-transform active:scale-95 flex justify-center items-center gap-2`}>
@@ -702,7 +798,7 @@ export default function CajeroPage() {
                       <input type="number" min="0" step="0.5" value={montoCierre} onChange={e => setMontoCierre(e.target.value)} className={`w-full min-w-0 pl-12 pr-5 py-5 ${c.inputBg} border-2 ${c.border} rounded-2xl text-xl font-black focus:outline-none focus:border-rose-500 focus:ring-4 focus:ring-rose-500/20 transition-all`} placeholder="0.00" />
                     </div>
                   </div>
-                  <button onClick={() => handleAccionCaja('CERRAR')} disabled={!montoCierre || operando} className="w-full bg-rose-500 hover:bg-rose-600 disabled:opacity-50 text-white py-5 rounded-2xl font-black text-base transition-transform active:scale-95 shadow-xl shadow-rose-500/20 flex justify-center items-center gap-2">
+                  <button onClick={() => handleAccionCaja('CERRAR')} disabled={!montoCierre || operando} className="w-full bg-rose-500 hover:bg-rose-600 text-white disabled:opacity-50 py-5 rounded-2xl font-black text-base transition-transform active:scale-95 shadow-xl shadow-rose-500/20 flex justify-center items-center gap-2">
                     <Lock size={20} /> Ejecutar Cierre
                   </button>
                 </div>
@@ -716,7 +812,7 @@ export default function CajeroPage() {
           {(!sesion || sesion.estado === 'CERRADA') ? (
             <div className="flex-1 flex flex-col items-center justify-center p-8 text-center animate-in fade-in duration-500">
               <div className={`w-40 h-40 rounded-full flex items-center justify-center bg-rose-500/5 mb-8 border-2 border-dashed border-rose-500/20`}>
-                <AlertTriangle size={64} className="text-rose-400 opacity-80" />
+                <AlertTriangle size={64} className="text-rose-500 opacity-80" />
               </div>
               <h2 className={`text-5xl font-black tracking-tight ${c.textMain} mb-4`}>Terminal Inactiva</h2>
               <p className={`text-xl font-medium ${c.textMuted} max-w-lg`}>Debes aperturar la caja indicando el fondo base para poder visualizar y gestionar las transacciones.</p>
@@ -743,7 +839,7 @@ export default function CajeroPage() {
               </div>
 
               {/* VISTA 1: SALÓN POR COBRAR */}
-              <div className="flex-1 overflow-y-auto px-10 pb-10 [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none]">
+              <div className="flex-1 overflow-y-auto px-10 pb-10 custom-scrollbar">
                 {vistaActiva === 'POR_COBRAR' && (
                   <div className="grid grid-cols-1 lg:grid-cols-2 2xl:grid-cols-3 gap-8 animate-in fade-in">
                     {pedidosEntregados.map((pedido) => {
@@ -753,17 +849,22 @@ export default function CajeroPage() {
                         <div key={pedido.id} className={`${c.cardBg} rounded-[2.5rem] border ${c.border} p-8 shadow-sm hover:shadow-2xl transition-all flex flex-col group`}>
                           <div className={`flex justify-between items-start mb-6 border-b ${c.borderLight} pb-6`}>
                             <div>
-                              <p className={`text-[10px] font-black uppercase tracking-widest ${c.textMuted}`}>Orden #{pedido.id}</p>
+                              <p className={`text-[10px] font-black uppercase tracking-widest ${c.textMuted}`}>ORD-{pedido.id.toString().padStart(3,'0')}</p>
                               <h3 className={`text-3xl font-black tracking-tight mt-1.5 ${c.textMain}`}>{pedido.mesa || 'Llevar'}</h3>
                             </div>
-                            <span className={`bg-indigo-50 text-indigo-600 border border-indigo-200 text-[10px] font-black px-3 py-1.5 rounded-xl uppercase tracking-wider`}>Entregado</span>
+                            <div className="flex flex-col items-end gap-2">
+                              <span className={`bg-emerald-500/10 text-emerald-500 border border-emerald-500/20 text-[10px] font-black px-3 py-1.5 rounded-xl uppercase tracking-wider`}>Entregado</span>
+                              <button onClick={() => setPedidoSplit(pedido)} className={`text-xs font-bold ${c.textMuted} hover:text-[#FFC640] transition-colors flex items-center gap-1 mt-2`}>
+                                <Split size={14}/> Dividir
+                              </button>
+                            </div>
                           </div>
                           
-                          <div className="flex-1 max-h-48 overflow-y-auto space-y-3 mb-6 [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none] pr-3">
+                          <div className="flex-1 max-h-48 overflow-y-auto space-y-3 mb-6 custom-scrollbar pr-3">
                             {pedido.items.map((i) => (
-                              <div key={i.detalleId} className={`flex justify-between text-sm font-medium ${c.textMuted} items-start bg-slate-50/50 dark:bg-slate-900/30 p-2.5 rounded-xl`}>
+                              <div key={i.detalleId} className={`flex justify-between text-sm font-medium ${c.textMuted} items-start ${c.itemBg} border ${c.borderLight} p-3 rounded-xl`}>
                                 <span className="pr-2 leading-tight">
-                                  <span className={`font-black ${c.textMain}`}>{i.cantidad}x</span> {i.nombreProducto}
+                                  <span className={`font-black ${c.textMain} mr-2`}>{i.cantidad}x</span> {i.nombreProducto}
                                 </span>
                                 <span className={`font-black ${c.textMain} whitespace-nowrap`}>S/{i.subtotal.toFixed(2)}</span>
                               </div>
@@ -773,7 +874,7 @@ export default function CajeroPage() {
                           <div className={`mt-auto pt-6 border-t ${c.borderLight}`}>
                             <div className="flex items-end justify-between mb-6">
                               <span className={`text-[10px] font-black uppercase tracking-widest ${c.textMuted}`}>Monto a Cobrar</span>
-                              <span className="text-4xl font-black text-amber-500 tracking-tight leading-none">S/ {pedido.total.toFixed(2)}</span>
+                              <span className="text-4xl font-black text-[#FFC640] tracking-tight leading-none">S/ {pedido.total.toFixed(2)}</span>
                             </div>
                             <button onClick={() => setPedidoACobrar(pedido)} className={`w-full ${c.primaryBtn} text-base font-black py-5 rounded-2xl transition-transform active:scale-95 shadow-lg`}>
                               Procesar Pago
@@ -802,7 +903,7 @@ export default function CajeroPage() {
                       historialHoy.map(p => (
                         <div key={p.id} className={`${c.cardBg} border ${c.border} rounded-[2rem] p-6 flex flex-col md:flex-row md:items-center justify-between gap-6 shadow-sm hover:shadow-md transition-shadow`}>
                           <div className="flex items-center gap-6">
-                            <div className={`w-16 h-16 rounded-[1.25rem] flex items-center justify-center font-black text-xl ${p.estadoActual === 'PAGADO' || p.estadoActual === 'ENTREGADO' ? 'bg-emerald-100 text-emerald-600' : 'bg-rose-100 text-rose-600'}`}>
+                            <div className={`w-16 h-16 rounded-[1.25rem] flex items-center justify-center font-black text-xl border ${p.estadoActual === 'PAGADO' || p.estadoActual === 'ENTREGADO' ? 'bg-emerald-500/10 text-emerald-500 border-emerald-500/20' : 'bg-rose-500/10 text-rose-500 border-rose-500/20'}`}>
                               #{p.id}
                             </div>
                             <div>
@@ -810,19 +911,19 @@ export default function CajeroPage() {
                               <p className={`text-xs font-bold ${c.textMuted} mt-1`}>{formatearFechaHoraPeru(p.fechaCreacion)}</p>
                               <div className="flex gap-2 mt-3">
                                 {p.documentosVenta?.map((doc: any) => (
-                                  <span key={doc.id} className={`text-[10px] font-black uppercase tracking-widest px-2.5 py-1 rounded-md border ${doc.tipo === 'FACTURA' ? 'border-purple-300 text-purple-700 bg-purple-50' : doc.tipo === 'BOLETA' ? 'border-blue-300 text-blue-700 bg-blue-50' : 'border-slate-300 text-slate-700 bg-slate-100'}`}>
+                                  <span key={doc.id} className={`text-[10px] font-black uppercase tracking-widest px-2.5 py-1 rounded-md border ${doc.tipo === 'FACTURA' ? 'border-purple-500/30 text-purple-500 bg-purple-500/10' : doc.tipo === 'BOLETA' ? 'border-blue-500/30 text-blue-500 bg-blue-500/10' : 'border-gray-500/30 text-gray-400 bg-gray-500/10'}`}>
                                     {doc.tipo.replace('_', ' ')}: {doc.serie}-{doc.correlativo}
                                   </span>
                                 ))}
                               </div>
                             </div>
                           </div>
-                          <div className="flex items-center gap-8 border-t md:border-t-0 md:border-l border-slate-200 dark:border-slate-800 pt-4 md:pt-0 md:pl-8">
+                          <div className={`flex items-center gap-8 border-t md:border-t-0 md:border-l ${c.borderLight} pt-4 md:pt-0 md:pl-8`}>
                             <div className="text-right">
                               <p className={`text-[10px] font-black uppercase tracking-widest ${c.textMuted}`}>Total</p>
                               <p className={`text-2xl font-black ${c.textMain}`}>S/ {p.total.toFixed(2)}</p>
                             </div>
-                            <button onClick={() => imprimirTicketTexto(p.id)} className={`${c.secondaryBtn} border ${c.border} p-4 rounded-2xl hover:text-amber-600 hover:border-amber-200 hover:bg-amber-50 transition-all shadow-sm`} title="Imprimir Ticket">
+                            <button onClick={() => imprimirTicketTexto(p.id)} className={`${c.secondaryBtn} border ${c.border} p-4 rounded-2xl hover:text-[#FFC640] hover:border-[#FFC640]/50 transition-all shadow-sm`} title="Imprimir Ticket">
                               <Printer size={24} />
                             </button>
                           </div>
@@ -840,7 +941,7 @@ export default function CajeroPage() {
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
                       {/* EFECTIVO */}
                       <div className={`${c.panelBg} rounded-[2rem] border ${c.border} p-8 shadow-sm flex items-center gap-6`}>
-                        <div className="w-16 h-16 bg-emerald-500/10 text-emerald-500 rounded-2xl flex items-center justify-center shrink-0">
+                        <div className="w-16 h-16 bg-emerald-500/10 border border-emerald-500/20 text-emerald-500 rounded-2xl flex items-center justify-center shrink-0">
                           <Banknote size={32} />
                         </div>
                         <div>
@@ -851,7 +952,7 @@ export default function CajeroPage() {
 
                       {/* DIGITAL GLOBAL */}
                       <div className={`${c.panelBg} rounded-[2rem] border ${c.border} p-8 shadow-sm flex items-center gap-6`}>
-                        <div className="w-16 h-16 bg-indigo-500/10 text-indigo-500 rounded-2xl flex items-center justify-center shrink-0">
+                        <div className="w-16 h-16 bg-indigo-500/10 border border-indigo-500/20 text-indigo-500 rounded-2xl flex items-center justify-center shrink-0">
                           <TrendingUp size={32} />
                         </div>
                         <div>
@@ -880,13 +981,13 @@ export default function CajeroPage() {
                       </div>
 
                       {/* GRAN TOTAL */}
-                      <div className={`md:col-span-2 bg-slate-900 rounded-[2rem] p-10 shadow-xl flex items-center justify-between border border-slate-800`}>
+                      <div className={`md:col-span-2 bg-[#0a0a0a] rounded-[2rem] p-10 shadow-xl flex items-center justify-between border border-gray-800`}>
                         <div>
-                          <p className={`text-sm font-black uppercase tracking-widest text-slate-400 mb-2`}>Ingresos Globales del Turno</p>
-                          <p className={`text-6xl font-black text-white tracking-tight`}>S/ {granTotal.toFixed(2)}</p>
+                          <p className={`text-sm font-black uppercase tracking-widest text-gray-400 mb-2`}>Ingresos Globales del Turno</p>
+                          <p className={`text-6xl font-black text-[#FFC640] tracking-tight`}>S/ {granTotal.toFixed(2)}</p>
                         </div>
-                        <div className="w-24 h-24 bg-white/10 rounded-full flex items-center justify-center">
-                          <PieChart size={48} className="text-white" />
+                        <div className="w-24 h-24 bg-white/5 rounded-full flex items-center justify-center border border-gray-800">
+                          <PieChart size={48} className="text-[#FFC640]" />
                         </div>
                       </div>
                     </div>
@@ -898,8 +999,10 @@ export default function CajeroPage() {
         </main>
       </div>
 
-      <ModalConfirmacion {...confirmDialog} onCancel={() => setConfirmDialog((p: any) => ({ ...p, isOpen: false }))} />
+      <ModalConfirmacion {...confirmDialog} theme={theme} onCancel={() => setConfirmDialog((p: any) => ({ ...p, isOpen: false }))} />
+      
       {pedidoACobrar && sesion && <ModalPago pedido={pedidoACobrar} sesionId={sesion.id} c={c} onClose={() => setPedidoACobrar(null)} onPagado={() => { setPedidoACobrar(null); cargarEstado(); }} />}
+      {pedidoSplit && sesion && <ModalSplitCuenta pedido={pedidoSplit} sesionId={sesion.id} c={c} theme={theme} onClose={() => setPedidoSplit(null)} onCambio={cargarEstado} />}
     </div>
   );
 }

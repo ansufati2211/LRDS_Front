@@ -20,7 +20,7 @@ function ModalConfirmacion({ isOpen, title, message, onClose, onConfirm }: { isO
         </div>
         <div className="flex gap-3 pt-2">
           <button type="button" onClick={onClose} className="flex-1 px-5 py-3.5 border border-gray-200 text-gray-600 rounded-xl font-bold hover:bg-gray-50 transition-all">Cancelar</button>
-          <button type="button" onClick={() => { onConfirm(); onClose(); }} className="flex-1 px-4 py-3 bg-[#FFC640] hover:bg-amber-400 text-black font-black rounded-xl disabled:opacity-50 flex justify-center items-center shadow-lg shadow-[#FFC640]/30 transition-all">Sí, confirmar</button>
+          <button type="button" onClick={() => { onConfirm(); onClose(); }} className="flex-1 px-4 py-3 bg-gradient-to-r from-orange-500 to-amber-500 hover:from-orange-400 hover:to-amber-400 text-white font-black font-bold rounded-xl transition-all">Sí, confirmar</button>
         </div>
       </div>
     </div>
@@ -144,7 +144,7 @@ function ModalInsumo({ insumo, onClose, onGuardar }: { insumo?: Insumo | null; o
 
           <div className="pt-4 flex gap-3">
             <button type="button" onClick={onClose} className="flex-1 px-5 py-3.5 border border-gray-200 text-gray-600 rounded-xl font-bold hover:bg-gray-50 transition-all">Cancelar</button>
-            <button type="submit" disabled={loading} className="flex-1 px-5 py-3.5 bg-[#FFC640] hover:bg-amber-400 text-black font-black rounded-xl disabled:opacity-50 flex justify-center items-center shadow-lg shadow-[#FFC640]/30 transition-all">
+            <button type="submit" disabled={loading} className="flex-1 px-5 py-3.5 bg-gradient-to-r from-orange-500 to-amber-500 hover:from-orange-400 hover:to-amber-400 text-white font-black font-bold rounded-xl transition-all">
               {loading ? 'Guardando...' : 'Guardar Insumo'}
             </button>
           </div>
@@ -266,7 +266,7 @@ export default function InventarioPage() {
             {isAdmin && tab === 'ACTIVOS' && (
               <button 
                 onClick={() => setModal({ isOpen: true, data: null })} 
-                className="w-full sm:w-auto bg-[#FFC640] hover:bg-amber-400 text-black shadow-lg shadow-[#FFC640]/30 px-6 py-3 rounded-xl font-black flex justify-center items-center gap-2 transition-all active:scale-95 whitespace-nowrap"
+                className="w-full sm:w-auto bg-gradient-to-r from-orange-500 to-amber-500 hover:from-orange-400 hover:to-amber-400 text-white font-black font-bold px-6 py-3 rounded-xl font-black flex justify-center items-center gap-2 transition-all active:scale-95 whitespace-nowrap"
               >
                 <Plus size={18} /> Nuevo Insumo
               </button>
